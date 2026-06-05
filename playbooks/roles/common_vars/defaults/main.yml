@@ -137,7 +137,7 @@ common_release_specific_debian_pkgs:
     - python-pip
     - python3.5-dev
   focal:
-    - python3.5-dev
+    - python3-dev
 
 common_debian_pkgs: "{{ common_debian_pkgs_default + common_release_specific_debian_pkgs[ansible_distribution_release] }}"
 
