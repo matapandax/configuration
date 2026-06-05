@@ -147,12 +147,13 @@ fi
 EXTRA_VARS="-e@$(pwd)/config.yml $EXTRA_VARS"
 
 CONFIGURATION_VERSION=${CONFIGURATION_VERSION-$OPENEDX_RELEASE}
+CONFIGURATION_REPO=${CONFIGURATION_REPO-https://github.com/edx/configuration}
 
 ##
 ## Clone the configuration repository and run Ansible
 ##
 cd /var/tmp
-git clone https://github.com/edx/configuration
+git clone $CONFIGURATION_REPO configuration
 cd configuration
 git checkout $CONFIGURATION_VERSION
 git pull

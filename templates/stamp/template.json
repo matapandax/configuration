@@ -1,0 +1,438 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Single-VM Azure custom template for Open edX Koa using the legacy native installer."
+  },
+  "parameters": {
+    "clusterName": {
+      "type": "string",
+      "defaultValue": "openedxkoa",
+      "minLength": 3,
+      "maxLength": 18,
+      "metadata": {
+        "description": "Short lowercase name used for Azure resources. Use letters and numbers only."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "edxicei",
+      "metadata": {
+        "description": "Linux admin username for the VM."
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "minLength": 12,
+      "metadata": {
+        "description": "Password for the Linux VM admin user."
+      }
+    },
+    "dnsLabelPrefix": {
+      "type": "string",
+      "defaultValue": "[concat('openedxkoa', uniqueString(resourceGroup().id))]",
+      "metadata": {
+        "description": "DNS label for the public IP. The final host is dnsLabel.region.cloudapp.azure.com."
+      }
+    },
+    "lmsHostName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional LMS hostname. Leave empty to use the Azure public DNS name."
+      }
+    },
+    "cmsHostName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional Studio hostname. Leave empty to use the Azure public DNS name with :18010."
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4s_v3",
+      "metadata": {
+        "description": "VM size. Open edX needs a reasonably large VM; Standard_D4s_v3 is a practical starting point."
+      }
+    },
+    "ubuntuSku": {
+      "type": "string",
+      "defaultValue": "20_04-lts-gen2",
+      "allowedValues": [
+        "20_04-lts",
+        "20_04-lts-gen2"
+      ],
+      "metadata": {
+        "description": "Ubuntu 20.04 image SKU. The Koa native installer in this branch expects Ubuntu 20.04."
+      }
+    },
+    "osDiskSizeGB": {
+      "type": "int",
+      "defaultValue": 128,
+      "minValue": 64,
+      "metadata": {
+        "description": "OS disk size in GB."
+      }
+    },
+    "installerGithubRepo": {
+      "type": "string",
+      "defaultValue": "https://github.com/matapandax/configuration.git",
+      "metadata": {
+        "description": "Repository cloned first to run util/install/native.sh."
+      }
+    },
+    "installerGithubBranch": {
+      "type": "string",
+      "defaultValue": "open-release/koa.master",
+      "metadata": {
+        "description": "Branch used from installerGithubRepo."
+      }
+    },
+    "openedxRelease": {
+      "type": "string",
+      "defaultValue": "open-release/koa.master",
+      "metadata": {
+        "description": "Open edX release passed to OPENEDX_RELEASE."
+      }
+    },
+    "configurationVersion": {
+      "type": "string",
+      "defaultValue": "open-release/koa.master",
+      "metadata": {
+        "description": "Configuration branch passed to CONFIGURATION_VERSION."
+      }
+    },
+    "configurationGithubRepo": {
+      "type": "string",
+      "defaultValue": "https://github.com/matapandax/configuration.git",
+      "metadata": {
+        "description": "Repository cloned by native.sh for the Ansible configuration checkout."
+      }
+    },
+    "allowedSshSource": {
+      "type": "string",
+      "defaultValue": "*",
+      "metadata": {
+        "description": "Source CIDR allowed to SSH. Use your public IP with /32 for production."
+      }
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "publicIpName": "[concat(parameters('clusterName'), '-pip')]",
+    "nsgName": "[concat(parameters('clusterName'), '-nsg')]",
+    "vnetName": "[concat(parameters('clusterName'), '-vnet')]",
+    "subnetName": "default",
+    "nicName": "[concat(parameters('clusterName'), '-nic')]",
+    "vmName": "[concat(parameters('clusterName'), '-vm')]",
+    "publicDnsName": "[concat(parameters('dnsLabelPrefix'), '.', variables('location'), '.cloudapp.azure.com')]",
+    "resolvedLmsHost": "[if(equals(parameters('lmsHostName'), ''), variables('publicDnsName'), parameters('lmsHostName'))]",
+    "resolvedCmsHost": "[if(equals(parameters('cmsHostName'), ''), concat(variables('publicDnsName'), ':18010'), parameters('cmsHostName'))]",
+    "linuxConfiguration": {
+      "disablePasswordAuthentication": false
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('publicIpName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[parameters('dnsLabelPrefix')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nsgName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "SSH",
+            "properties": {
+              "priority": 1000,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSshSource')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "22"
+            }
+          },
+          {
+            "name": "HTTP",
+            "properties": {
+              "priority": 1010,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "80"
+            }
+          },
+          {
+            "name": "HTTPS",
+            "properties": {
+              "priority": 1020,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "443"
+            }
+          },
+          {
+            "name": "Studio",
+            "properties": {
+              "priority": 1030,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "18010"
+            }
+          },
+          {
+            "name": "StudioSSL",
+            "properties": {
+              "priority": 1040,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "48010"
+            }
+          },
+          {
+            "name": "Certs",
+            "properties": {
+              "priority": 1050,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "18090"
+            }
+          },
+          {
+            "name": "Discovery",
+            "properties": {
+              "priority": 1060,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "18381"
+            }
+          },
+          {
+            "name": "Ecommerce",
+            "properties": {
+              "priority": 1070,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "18130"
+            }
+          },
+          {
+            "name": "EdxRelease",
+            "properties": {
+              "priority": 1080,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "8099"
+            }
+          },
+          {
+            "name": "Forum",
+            "properties": {
+              "priority": 1090,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "18080"
+            }
+          },
+          {
+            "name": "Xqueue",
+            "properties": {
+              "priority": 1100,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "18040"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vnetName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetName')]",
+            "properties": {
+              "addressPrefix": "10.0.0.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nicName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vmName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "0001-com-ubuntu-server-focal",
+            "sku": "[parameters('ubuntuSku')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "diskSizeGB": "[parameters('osDiskSizeGB')]",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "osProfile": {
+          "computerName": "[variables('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "linuxConfiguration": "[variables('linuxConfiguration')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-09-01",
+      "name": "[concat(variables('vmName'), '/install-openedx-koa')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.1",
+        "autoUpgradeMinorVersion": true,
+        "settings": {},
+        "protectedSettings": {
+          "commandToExecute": "[concat('bash -lc ''set -euxo pipefail; export DEBIAN_FRONTEND=noninteractive; LOG=/var/log/openedx-azure-install.log; exec > >(tee -a $LOG) 2>&1; apt-get update -y; apt-get install -y git curl ca-certificates software-properties-common python3-pip; mkdir -p /home/', parameters('adminUsername'), '/openedx-install; chown -R ', parameters('adminUsername'), ':', parameters('adminUsername'), ' /home/', parameters('adminUsername'), '/openedx-install; if [ ! -d /home/', parameters('adminUsername'), '/openedx-install/.git ]; then git clone ', parameters('installerGithubRepo'), ' /home/', parameters('adminUsername'), '/openedx-install; fi; git config --global --add safe.directory /home/', parameters('adminUsername'), '/openedx-install; cd /home/', parameters('adminUsername'), '/openedx-install; git fetch --all --tags; git checkout ', parameters('installerGithubBranch'), '; git pull --ff-only || true; cat > config.yml <<\"EOF\"\nEDXAPP_LMS_BASE: \"', variables('resolvedLmsHost'), '\"\nEDXAPP_CMS_BASE: \"', variables('resolvedCmsHost'), '\"\nEDXAPP_LMS_BASE_SCHEME: http\nCOMMON_LMS_BASE_URL: \"http://', variables('resolvedLmsHost'), '\"\nCOMMON_CONFIG_NO_LOGGING: false\nEOF\nexport OPENEDX_RELEASE=\"', parameters('openedxRelease'), '\"; export CONFIGURATION_VERSION=\"', parameters('configurationVersion'), '\"; export CONFIGURATION_REPO=\"', parameters('configurationGithubRepo'), '\"; ./util/install/generate-passwords.sh; bash ./util/install/native.sh''')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "lmsUrl": {
+      "type": "string",
+      "value": "[concat('http://', variables('resolvedLmsHost'))]"
+    },
+    "studioUrl": {
+      "type": "string",
+      "value": "[concat('http://', variables('resolvedCmsHost'))]"
+    },
+    "sshCommand": {
+      "type": "string",
+      "value": "[concat('ssh ', parameters('adminUsername'), '@', variables('publicDnsName'))]"
+    },
+    "installLog": {
+      "type": "string",
+      "value": "/var/log/openedx-azure-install.log"
+    }
+  }
+}
