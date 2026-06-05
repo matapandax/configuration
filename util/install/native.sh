@@ -153,10 +153,15 @@ CONFIGURATION_REPO=${CONFIGURATION_REPO-https://github.com/edx/configuration}
 ## Clone the configuration repository and run Ansible
 ##
 cd /var/tmp
-git clone $CONFIGURATION_REPO configuration
+if [[ ! -d configuration/.git ]]; then
+    git clone $CONFIGURATION_REPO configuration
+fi
+git config --global --add safe.directory /var/tmp/configuration
 cd configuration
+git remote set-url origin $CONFIGURATION_REPO
+git fetch origin
 git checkout $CONFIGURATION_VERSION
-git pull
+git pull --ff-only origin $CONFIGURATION_VERSION
 
 ##
 ## Install the ansible requirements
