@@ -107,3 +107,12 @@
     - role: user_retirement_pipeline
       when: COMMON_RETIREMENT_SERVICE_SETUP
     - role: mfe_deployer
+  post_tasks:
+    - name: Show Koa native installation completion notice
+      debug:
+        msg:
+          - "Open edX Koa native installation completed successfully."
+          - "Core services are configured: LMS, CMS, edxapp workers, forum, xqueue, certs, nginx, Redis, MongoDB, MySQL, and Elasticsearch."
+          - "Ecommerce services are enabled when SANDBOX_ENABLE_ECOMMERCE=true: ecommerce and ecomworker."
+          - "Optional services skipped by default for this Koa VM: analytics_api, insights, discovery, notes, and blockstore."
+          - "Next check: sudo /edx/bin/supervisorctl status"
