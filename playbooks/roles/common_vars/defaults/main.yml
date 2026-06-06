@@ -125,6 +125,7 @@ common_debian_pkgs_default:
   - logrotate
   - rsyslog
   - git
+  - gnupg
   - unzip
   - net-tools
   - python3-pip
