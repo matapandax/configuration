@@ -61,6 +61,30 @@
     - install
     - install:code
 
+- name: Mark repositories as safe for repo owner
+  shell: git config --global --add safe.directory "{{ item }}"
+  become_user: "{{ repo_owner }}"
+  with_items: "{{ GIT_REPOS | map(attribute='DESTINATION') | list }}"
+  tags:
+    - install
+    - install:code
+
+- name: Reset existing git repositories before checkout
+  shell: test ! -d "{{ item }}/.git" || git -C "{{ item }}" reset --hard
+  become_user: "{{ repo_owner }}"
+  with_items: "{{ GIT_REPOS | map(attribute='DESTINATION') | list }}"
+  tags:
+    - install
+    - install:code
+
+- name: Clean existing git repositories before checkout
+  shell: test ! -d "{{ item }}/.git" || git -C "{{ item }}" clean -xdf
+  become_user: "{{ repo_owner }}"
+  with_items: "{{ GIT_REPOS | map(attribute='DESTINATION') | list }}"
+  tags:
+    - install
+    - install:code
+
 - name: Check that working tree is clean
   shell: test ! -e "{{ item }}" || git -C "{{ item }}" status --porcelain --untracked-files=no
   register: dirty_files
@@ -83,6 +107,7 @@
     accept_hostkey: yes
     key_file: "{{ git_home }}/.ssh/{{ item.REPO }}"
     depth: 1
+    force: yes
   become_user: "{{ repo_owner }}"
   register: code_checkout
   when: item.PROTOCOL == "ssh" and GIT_REPOS is defined
@@ -98,6 +123,7 @@
     dest: "{{ item.DESTINATION }}"
     version: "{{ item.VERSION }}"
     depth: 1
+    force: yes
   become_user: "{{ repo_owner }}"
   register: code_checkout
   when: item.PROTOCOL == "https" and GIT_REPOS is defined
