@@ -41,6 +41,7 @@
     repo: "{{ edx_platform_repo }}"
     version: "{{ EDX_PLATFORM_VERSION }}"
     accept_hostkey: yes
+    force: yes
     key_file: "{% if EDXAPP_USE_GIT_IDENTITY %}{{ edxapp_git_identity }}{% endif %}"
   become_user: "{{ edxapp_user }}"
   register: edxapp_platform_checkout
