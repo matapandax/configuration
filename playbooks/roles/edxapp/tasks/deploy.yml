@@ -296,6 +296,31 @@
     - install
     - install:app-requirements
 
+- name: Pin sandbox Python packaging tools for legacy requirements.
+  command: "{{ edxapp_sandbox_venv_dir }}/bin/pip install setuptools==44.1.0 packaging==20.9"
+  args:
+    chdir: "{{ edxapp_code_dir }}"
+  become_user: "{{ edxapp_sandbox_user }}"
+  environment: "{{ edxapp_environment }}"
+  when: EDXAPP_PYTHON_SANDBOX
+  tags:
+    - edxapp-sandbox
+    - install
+    - install:app-requirements
+
+- name: Patch Python 3 sandbox numpy/scipy pins for Ubuntu focal.
+  shell: |
+    sed -i -E 's/^numpy==.*/numpy==1.19.5/' {{ edxapp_code_dir }}/requirements/edx-sandbox/py35.txt
+    sed -i -E 's/^scipy==.*/scipy==1.5.4/' {{ edxapp_code_dir }}/requirements/edx-sandbox/py35.txt
+  args:
+    chdir: "{{ edxapp_code_dir }}"
+  become_user: "{{ edxapp_user }}"
+  when: EDXAPP_PYTHON_SANDBOX and edxapp_sandbox_python_version != 'python2.7'
+  tags:
+    - edxapp-sandbox
+    - install
+    - install:app-requirements
+
 - name: code sandbox | Install base sandbox requirements and create sandbox virtualenv
   pip:
     chdir: "{{ edxapp_code_dir }}"
