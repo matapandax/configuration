@@ -127,6 +127,16 @@
     - install
     - install:app-requirements
 
+- name: Pin Python packaging tools for legacy editable installs.
+  command: "{{ edxapp_venv_dir }}/bin/pip install setuptools==44.1.0 packaging==20.9"
+  args:
+    chdir: "{{ edxapp_code_dir }}"
+  become_user: "{{ edxapp_user }}"
+  environment: "{{ edxapp_environment }}"
+  tags:
+    - install
+    - install:app-requirements
+
 - name: Stat each Python requirements file to ensure it exists
   stat:
     path: "{{ item }}"
