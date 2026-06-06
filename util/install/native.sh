@@ -113,6 +113,12 @@ sudo -H pip install --upgrade virtualenv==16.7.10
 ## Overridable version variables in the playbooks. Each can be overridden
 ## individually, or with $OPENEDX_RELEASE.
 ##
+# Some auxiliary service repositories do not publish named Open edX release
+# branches for Koa. Keep them on master unless explicitly overridden.
+ANALYTICS_API_VERSION=${ANALYTICS_API_VERSION-master}
+DISCOVERY_VERSION=${DISCOVERY_VERSION-master}
+INSIGHTS_VERSION=${INSIGHTS_VERSION-master}
+
 VERSION_VARS=(
     EDX_PLATFORM_VERSION
     CERTS_VERSION
