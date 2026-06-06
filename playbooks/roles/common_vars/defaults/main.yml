@@ -135,7 +135,7 @@ common_release_specific_debian_pkgs:
     - python2.7-dev
   bionic:
     - python-pip
-    - python3.5-dev
+    - python3-dev
   focal:
     - python3-dev
 
