@@ -10,6 +10,29 @@
 # Tasks for role ecommerce_worker.
 # 
 
+- name: pin pip for legacy ecommerce worker requirements
+  pip:
+    name: pip
+    version: "20.0.2"
+    virtualenv: '{{ ecommerce_worker_home }}/venvs/{{ ecommerce_worker_service_name }}'
+    state: present
+  become_user: '{{ ecommerce_worker_user }}'
+  tags:
+    - install
+    - install:app-requirements
+
+- name: pin Python packaging tools for legacy ecommerce worker requirements
+  pip:
+    name:
+      - setuptools==44.1.0
+      - packaging==20.9
+    virtualenv: '{{ ecommerce_worker_home }}/venvs/{{ ecommerce_worker_service_name }}'
+    state: present
+  become_user: '{{ ecommerce_worker_user }}'
+  tags:
+    - install
+    - install:app-requirements
+
 - name: install application requirements
   pip:
     requirements: '{{ ecommerce_worker_requirements_base }}/{{ item }}'
