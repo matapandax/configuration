@@ -51,6 +51,15 @@
     - "install"
     - "install:app-requirements"
 
+- name: remove stale mongodb apt source lists
+  shell: "rm -f /etc/apt/sources.list.d/*mongodb*.list /etc/apt/sources.list.d/*repo_mongodb_org*.list"
+  args:
+    warn: false
+  tags:
+    - "install"
+    - "install:app-requirements"
+    - "mongo_packages"
+
 - name: add the mongodb repo to the sources list
   apt_repository:
     repo: "{{ MONGODB_REPO }}"
