@@ -54,6 +54,13 @@
     - install
     - install:code
 
+- name: Mark repositories as safe for git ownership checks
+  shell: git config --global --add safe.directory "{{ item }}"
+  with_items: "{{ GIT_REPOS | map(attribute='DESTINATION') | list }}"
+  tags:
+    - install
+    - install:code
+
 - name: Check that working tree is clean
   shell: test ! -e "{{ item }}" || git -C "{{ item }}" status --porcelain --untracked-files=no
   register: dirty_files
