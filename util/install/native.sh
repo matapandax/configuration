@@ -92,6 +92,9 @@ sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 ##
 ## Update and Upgrade apt packages
 ##
+sudo rm -f /etc/apt/sources.list.d/*nodesource*.list
+sudo rm -f /etc/apt/sources.list.d/*mongodb*.list /etc/apt/sources.list.d/*repo_mongodb_org*.list
+sudo apt-get clean
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
