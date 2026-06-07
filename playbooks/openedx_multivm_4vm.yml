@@ -53,6 +53,15 @@
         line: 'bind-address = {{ multivm_mysql_bind_ip | default(ansible_default_ipv4.address) }}'
       notify: Restart mysql
 
+    - name: Restart MySQL immediately if bind address changed
+      meta: flush_handlers
+
+    - name: Wait for MySQL to listen on the private network
+      wait_for:
+        host: "{{ multivm_mysql_bind_ip | default(ansible_default_ipv4.address) }}"
+        port: 3306
+        timeout: 60
+
     - name: Create Open edX MySQL databases
       mysql_db:
         db: "{{ item }}"
