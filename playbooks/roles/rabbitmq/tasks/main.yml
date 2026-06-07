@@ -258,32 +258,16 @@
     - "install"
     - "install:app-configuration"
 
-- name: Reset rabbitmq user permissions list
-  set_fact:
-    permissions: []
-  tags:
-    - users
-    - maintenance
-    - "manage"
-    - "manage:app-users"
-
-- name: Build rabbitmq user permissions
-  set_fact:
-    permissions: "{{ permissions + [{'vhost': item, 'configure_priv': '.*', 'read_priv': '.*', 'write_priv': '.*'}] }}"
-  with_items: "{{ RABBITMQ_VHOSTS }}"
-  tags:
-    - users
-    - maintenance
-    - "manage"
-    - "manage:app-users"
-
 - name: Add admin users
   rabbitmq_user:
     user: "{{ item.name }}"
     password: "{{ item.password }}"
     tags: "administrator"
     state: "{{ item.state | default('present') }}"
-    permissions: "{{ permissions }}"
+    vhost: "{{ RABBITMQ_VHOSTS[0] }}"
+    configure_priv: ".*"
+    read_priv: ".*"
+    write_priv: ".*"
   with_items:
     - "{{rabbitmq_auth_config.admins}}"
   when: "'admins' in rabbitmq_auth_config"
