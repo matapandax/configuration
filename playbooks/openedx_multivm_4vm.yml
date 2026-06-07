@@ -162,6 +162,7 @@
   gather_facts: true
   vars:
     COMMON_ENABLE_AWS_ROLE: false
+    EDX_PLATFORM_VERSION: "{{ lookup('env', 'OPENEDX_RELEASE') | default('open-release/koa.master', true) }}"
     REDIS_BIND_IP: "{{ multivm_worker_private_ip | default(ansible_default_ipv4.address) }}"
     rabbitmq_ip: "{{ multivm_worker_private_ip | default(ansible_default_ipv4.address) }}"
   roles:
@@ -197,7 +198,7 @@
     EDXAPP_LMS_BASE_SCHEME: http
     COMMON_LMS_BASE_URL: "{{ EDXAPP_LMS_BASE_SCHEME }}://{{ EDXAPP_LMS_BASE }}"
     EDXAPP_LMS_NGINX_PORT: '80'
-    EDX_PLATFORM_VERSION: 'master'
+    EDX_PLATFORM_VERSION: "{{ lookup('env', 'OPENEDX_RELEASE') | default('open-release/koa.master', true) }}"
     NGINX_SET_X_FORWARDED_HEADERS: true
     CONFIGURE_JWTS: false
     SANDBOX_ENABLE_BLOCKSTORE: false
