@@ -165,25 +165,22 @@
   roles:
     - mongo_3_6
 
-- name: Deploy worker, Redis, and RabbitMQ node
+- name: Deploy Redis and RabbitMQ node
   hosts: openedx_worker
   become: true
   gather_facts: true
   vars:
     COMMON_ENABLE_AWS_ROLE: false
-    EDX_PLATFORM_VERSION: "{{ lookup('env', 'OPENEDX_RELEASE') | default('open-release/koa.master', true) }}"
     REDIS_BIND_IP: "{{ multivm_worker_private_ip | default(ansible_default_ipv4.address) }}"
     rabbitmq_ip: "{{ multivm_worker_private_ip | default(ansible_default_ipv4.address) }}"
   roles:
     - redis
     - rabbitmq
-    - role: edxapp
-      celery_worker: true
   post_tasks:
-    - name: Show worker completion notice
+    - name: Show queue and cache completion notice
       debug:
         msg:
-          - "Worker node is configured."
+          - "Redis and RabbitMQ are configured."
           - "Redis/RabbitMQ host: {{ multivm_worker_private_ip | default(ansible_default_ipv4.address) }}"
           - "MySQL host: {{ EDXAPP_MYSQL_HOST }}"
           - "MongoDB host: {{ EDXAPP_MONGO_HOSTS }}"
@@ -231,6 +228,17 @@
         - lms
     - edxapp
     - edx_ansible
+
+- name: Deploy Celery worker after LMS/CMS migrations
+  hosts: openedx_worker
+  become: true
+  gather_facts: true
+  vars:
+    COMMON_ENABLE_AWS_ROLE: false
+    EDX_PLATFORM_VERSION: "{{ lookup('env', 'OPENEDX_RELEASE') | default('open-release/koa.master', true) }}"
+  roles:
+    - role: edxapp
+      celery_worker: true
   post_tasks:
     - name: Show fixed 4-node completion notice
       debug:
