@@ -38,6 +38,14 @@
   roles:
     - mysql
   post_tasks:
+    - name: Install Python MySQL bindings for Ansible database modules
+      apt:
+        name:
+          - python3-pymysql
+          - python3-mysqldb
+        state: present
+        update_cache: true
+
     - name: Allow MySQL to listen on the private network
       lineinfile:
         path: /etc/mysql/mysql.conf.d/mysqld.cnf
