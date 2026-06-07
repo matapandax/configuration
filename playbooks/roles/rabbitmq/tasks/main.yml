@@ -258,10 +258,19 @@
     - "install"
     - "install:app-configuration"
 
-- set_fact:
-    permissions: "{{ permissions|default([])+[{'vhost':item,'configure_priv':'.*','read_priv':'.*','write_priv':'.*'}] }}"
-  with_items:
-    - "{{ RABBITMQ_VHOSTS }}"
+- name: Reset rabbitmq user permissions list
+  set_fact:
+    permissions: []
+  tags:
+    - users
+    - maintenance
+    - "manage"
+    - "manage:app-users"
+
+- name: Build rabbitmq user permissions
+  set_fact:
+    permissions: "{{ permissions + [{'vhost': item, 'configure_priv': '.*', 'read_priv': '.*', 'write_priv': '.*'}] }}"
+  with_items: "{{ RABBITMQ_VHOSTS }}"
   tags:
     - users
     - maintenance
