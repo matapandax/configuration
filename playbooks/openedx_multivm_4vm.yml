@@ -198,6 +198,10 @@
     EDXAPP_CMS_LOCAL_CONFIG_FILE: "{{ COMMON_CFG_DIR }}/studio.yml"
     CLUSTER_NAME: 'edxapp'
     NGINX_ENABLE_SSL: false
+    EDXAPP_ENABLE_MEMCACHE: true
+    EDXAPP_MEMCACHE:
+      - "127.0.0.1:11211"
+    EDXAPP_CACHE_COURSE_STRUCTURE_MEMCACHE: "{{ EDXAPP_MEMCACHE }}"
     EDXAPP_PREVIEW_LMS_BASE: 'preview.{{ EDXAPP_LMS_BASE }}'
     EDXAPP_LOGIN_REDIRECT_WHITELIST:
       - "{{ EDXAPP_CMS_BASE }}"
@@ -219,11 +223,11 @@
     SANDBOX_ENABLE_REDIS: false
     SANDBOX_ENABLE_NOTES: false
     DEMO_ROLE_ENABLED: false
-    EDXAPP_ENABLE_MEMCACHE: false
     EDXAPP_ENABLE_ELASTIC_SEARCH: false
   roles:
     - role: swapfile
       SWAPFILE_SIZE: 4GB
+    - memcache
     - role: nginx
       nginx_sites:
         - cms
