@@ -194,6 +194,8 @@
     COMMON_ENABLE_AWS_ROLE: false
     UNENCRYPTED_CFG_DIR: "{{ COMMON_CFG_DIR }}"
     ENCRYPTED_CFG_DIR: "{{ COMMON_CFG_DIR }}"
+    EDXAPP_LMS_LOCAL_CONFIG_FILE: "{{ COMMON_CFG_DIR }}/lms.yml"
+    EDXAPP_CMS_LOCAL_CONFIG_FILE: "{{ COMMON_CFG_DIR }}/studio.yml"
     CLUSTER_NAME: 'edxapp'
     NGINX_ENABLE_SSL: false
     EDXAPP_PREVIEW_LMS_BASE: 'preview.{{ EDXAPP_LMS_BASE }}'
@@ -239,6 +241,8 @@
     COMMON_ENABLE_AWS_ROLE: false
     UNENCRYPTED_CFG_DIR: "{{ COMMON_CFG_DIR }}"
     ENCRYPTED_CFG_DIR: "{{ COMMON_CFG_DIR }}"
+    EDXAPP_LMS_LOCAL_CONFIG_FILE: "{{ COMMON_CFG_DIR }}/lms.yml"
+    EDXAPP_CMS_LOCAL_CONFIG_FILE: "{{ COMMON_CFG_DIR }}/studio.yml"
     EDX_PLATFORM_VERSION: "{{ lookup('env', 'OPENEDX_RELEASE') | default('open-release/koa.master', true) }}"
   roles:
     - role: edxapp
