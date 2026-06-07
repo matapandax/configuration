@@ -49,7 +49,7 @@
     - name: Allow MySQL to listen on the private network
       lineinfile:
         path: /etc/mysql/mysql.conf.d/mysqld.cnf
-        regexp: '^bind-address\s*='
+        regexp: '^\s*bind-address\s*='
         line: 'bind-address = {{ multivm_mysql_bind_ip | default(ansible_default_ipv4.address) }}'
       notify: Restart mysql
 
