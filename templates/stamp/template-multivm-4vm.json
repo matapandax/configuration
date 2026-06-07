@@ -1,0 +1,739 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Fixed 4-VM Azure template for Open edX: app, worker/cache/queue, MySQL, and MongoDB. No autoscale."
+  },
+  "parameters": {
+    "clusterName": {
+      "type": "string",
+      "defaultValue": "openedx4vm",
+      "minLength": 3,
+      "maxLength": 16,
+      "metadata": {
+        "description": "Short lowercase name used for Azure resources. Use letters and numbers only."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "edxicei",
+      "metadata": {
+        "description": "Linux admin username for all VMs."
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "minLength": 12,
+      "metadata": {
+        "description": "Password for the Linux VM admin user."
+      }
+    },
+    "dnsLabelPrefix": {
+      "type": "string",
+      "defaultValue": "[concat('openedx4vm', uniqueString(resourceGroup().id))]",
+      "metadata": {
+        "description": "DNS label for the public app VM IP."
+      }
+    },
+    "lmsHostName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional LMS hostname. Leave empty to use the Azure public DNS name."
+      }
+    },
+    "cmsHostName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional Studio hostname. Leave empty to use the Azure public DNS name with :18010."
+      }
+    },
+    "ubuntuSku": {
+      "type": "string",
+      "defaultValue": "20_04-lts-gen2",
+      "allowedValues": [
+        "20_04-lts",
+        "20_04-lts-gen2"
+      ],
+      "metadata": {
+        "description": "Ubuntu 20.04 image SKU."
+      }
+    },
+    "appVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4s_v3",
+      "metadata": {
+        "description": "VM size for LMS/CMS app."
+      }
+    },
+    "workerVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4s_v3",
+      "metadata": {
+        "description": "VM size for worker, Redis, and RabbitMQ."
+      }
+    },
+    "mysqlVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4s_v3",
+      "metadata": {
+        "description": "VM size for MySQL."
+      }
+    },
+    "mongoVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4s_v3",
+      "metadata": {
+        "description": "VM size for MongoDB."
+      }
+    },
+    "osDiskSizeGB": {
+      "type": "int",
+      "defaultValue": 128,
+      "minValue": 64,
+      "metadata": {
+        "description": "OS disk size in GB."
+      }
+    },
+    "dataDiskSizeGB": {
+      "type": "int",
+      "defaultValue": 256,
+      "minValue": 64,
+      "metadata": {
+        "description": "Data disk size in GB for MySQL and MongoDB."
+      }
+    },
+    "allowedSshSource": {
+      "type": "string",
+      "defaultValue": "*",
+      "metadata": {
+        "description": "Source CIDR allowed to SSH. Use your public IP with /32 for production."
+      }
+    },
+    "appBootstrapCommand": {
+      "type": "securestring",
+      "defaultValue": "bash -lc 'set -euxo pipefail; apt-get update -y; apt-get install -y nginx; echo openedx-app-ready > /var/www/html/index.html; systemctl enable nginx; systemctl restart nginx'",
+      "metadata": {
+        "description": "Command run on the app VM. Replace with the Open edX app bootstrap script when ready."
+      }
+    },
+    "workerBootstrapCommand": {
+      "type": "securestring",
+      "defaultValue": "bash -lc 'set -euxo pipefail; apt-get update -y; apt-get install -y redis-server rabbitmq-server; systemctl enable redis-server rabbitmq-server; systemctl restart redis-server rabbitmq-server'",
+      "metadata": {
+        "description": "Command run on the worker/cache/queue VM."
+      }
+    },
+    "mysqlBootstrapCommand": {
+      "type": "securestring",
+      "defaultValue": "bash -lc 'set -euxo pipefail; apt-get update -y; apt-get install -y mysql-server; systemctl enable mysql; systemctl restart mysql'",
+      "metadata": {
+        "description": "Command run on the MySQL VM."
+      }
+    },
+    "mongoBootstrapCommand": {
+      "type": "securestring",
+      "defaultValue": "bash -lc 'set -euxo pipefail; apt-get update -y; apt-get install -y gnupg curl; echo mongo-node-ready > /var/tmp/openedx-mongo.txt'",
+      "metadata": {
+        "description": "Command run on the MongoDB VM. Replace with the MongoDB version required by the Open edX release."
+      }
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "appPublicIpName": "[concat(parameters('clusterName'), '-app-pip')]",
+    "vnetName": "[concat(parameters('clusterName'), '-vnet')]",
+    "appSubnetName": "app",
+    "dataSubnetName": "data",
+    "appNsgName": "[concat(parameters('clusterName'), '-app-nsg')]",
+    "dataNsgName": "[concat(parameters('clusterName'), '-data-nsg')]",
+    "appVmName": "[concat(parameters('clusterName'), '-app')]",
+    "workerVmName": "[concat(parameters('clusterName'), '-worker')]",
+    "mysqlVmName": "[concat(parameters('clusterName'), '-mysql')]",
+    "mongoVmName": "[concat(parameters('clusterName'), '-mongo')]",
+    "appNicName": "[concat(parameters('clusterName'), '-app-nic')]",
+    "workerNicName": "[concat(parameters('clusterName'), '-worker-nic')]",
+    "mysqlNicName": "[concat(parameters('clusterName'), '-mysql-nic')]",
+    "mongoNicName": "[concat(parameters('clusterName'), '-mongo-nic')]",
+    "appPrivateIp": "10.30.1.10",
+    "workerPrivateIp": "10.30.1.11",
+    "mysqlPrivateIp": "10.30.2.10",
+    "mongoPrivateIp": "10.30.2.11",
+    "appSubnetPrefix": "10.30.1.0/24",
+    "dataSubnetPrefix": "10.30.2.0/24",
+    "publicDnsName": "[concat(parameters('dnsLabelPrefix'), '.', variables('location'), '.cloudapp.azure.com')]",
+    "resolvedLmsHost": "[if(equals(parameters('lmsHostName'), ''), variables('publicDnsName'), parameters('lmsHostName'))]",
+    "resolvedCmsHost": "[if(equals(parameters('cmsHostName'), ''), concat(variables('publicDnsName'), ':18010'), parameters('cmsHostName'))]",
+    "linuxConfiguration": {
+      "disablePasswordAuthentication": false
+    },
+    "imageReference": {
+      "publisher": "Canonical",
+      "offer": "0001-com-ubuntu-server-focal",
+      "sku": "[parameters('ubuntuSku')]",
+      "version": "latest"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('appPublicIpName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[parameters('dnsLabelPrefix')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('appNsgName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "AllowHttp",
+            "properties": {
+              "priority": 1000,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "80"
+            }
+          },
+          {
+            "name": "AllowHttps",
+            "properties": {
+              "priority": 1010,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "443"
+            }
+          },
+          {
+            "name": "AllowStudio",
+            "properties": {
+              "priority": 1020,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "18010"
+            }
+          },
+          {
+            "name": "AllowSshRestricted",
+            "properties": {
+              "priority": 1030,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSshSource')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "22"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('dataNsgName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "AllowMySQLFromAppSubnet",
+            "properties": {
+              "priority": 1000,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[variables('appSubnetPrefix')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "3306"
+            }
+          },
+          {
+            "name": "AllowMongoFromAppSubnet",
+            "properties": {
+              "priority": 1010,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[variables('appSubnetPrefix')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "27017"
+            }
+          },
+          {
+            "name": "AllowRedisFromAppSubnet",
+            "properties": {
+              "priority": 1020,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[variables('appSubnetPrefix')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "6379"
+            }
+          },
+          {
+            "name": "AllowRabbitMQFromAppSubnet",
+            "properties": {
+              "priority": 1030,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[variables('appSubnetPrefix')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "5672"
+            }
+          },
+          {
+            "name": "AllowSshRestricted",
+            "properties": {
+              "priority": 1040,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSshSource')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "22"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vnetName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.30.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('appSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('appSubnetPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('appNsgName'))]"
+              }
+            }
+          },
+          {
+            "name": "[variables('dataSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('dataSubnetPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('dataNsgName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('appNsgName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('dataNsgName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('appNicName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "[variables('appPrivateIp')]",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('appPublicIpName'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('appSubnetName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('appPublicIpName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('workerNicName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "[variables('workerPrivateIp')]",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('appSubnetName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('mysqlNicName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "[variables('mysqlPrivateIp')]",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('dataSubnetName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('mongoNicName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "[variables('mongoPrivateIp')]",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('dataSubnetName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('appVmName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('appVmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": "[variables('imageReference')]",
+          "osDisk": {
+            "createOption": "FromImage",
+            "diskSizeGB": "[parameters('osDiskSizeGB')]",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "osProfile": {
+          "computerName": "[variables('appVmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "linuxConfiguration": "[variables('linuxConfiguration')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('appNicName'))]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('appNicName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-09-01",
+      "name": "[concat(variables('appVmName'), '/bootstrap-app')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.1",
+        "autoUpgradeMinorVersion": true,
+        "settings": {},
+        "protectedSettings": {
+          "commandToExecute": "[parameters('appBootstrapCommand')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('appVmName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('workerVmName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('workerVmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": "[variables('imageReference')]",
+          "osDisk": {
+            "createOption": "FromImage",
+            "diskSizeGB": "[parameters('osDiskSizeGB')]",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "osProfile": {
+          "computerName": "[variables('workerVmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "linuxConfiguration": "[variables('linuxConfiguration')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('workerNicName'))]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('workerNicName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-09-01",
+      "name": "[concat(variables('workerVmName'), '/bootstrap-worker')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.1",
+        "autoUpgradeMinorVersion": true,
+        "settings": {},
+        "protectedSettings": {
+          "commandToExecute": "[parameters('workerBootstrapCommand')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('workerVmName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('mysqlVmName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('mysqlVmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": "[variables('imageReference')]",
+          "osDisk": {
+            "createOption": "FromImage",
+            "diskSizeGB": "[parameters('osDiskSizeGB')]",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          },
+          "dataDisks": [
+            {
+              "lun": 0,
+              "createOption": "Empty",
+              "diskSizeGB": "[parameters('dataDiskSizeGB')]",
+              "managedDisk": {
+                "storageAccountType": "Premium_LRS"
+              }
+            }
+          ]
+        },
+        "osProfile": {
+          "computerName": "[variables('mysqlVmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "linuxConfiguration": "[variables('linuxConfiguration')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('mysqlNicName'))]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('mysqlNicName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-09-01",
+      "name": "[concat(variables('mysqlVmName'), '/bootstrap-mysql')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.1",
+        "autoUpgradeMinorVersion": true,
+        "settings": {},
+        "protectedSettings": {
+          "commandToExecute": "[parameters('mysqlBootstrapCommand')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('mysqlVmName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('mongoVmName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('mongoVmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": "[variables('imageReference')]",
+          "osDisk": {
+            "createOption": "FromImage",
+            "diskSizeGB": "[parameters('osDiskSizeGB')]",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          },
+          "dataDisks": [
+            {
+              "lun": 0,
+              "createOption": "Empty",
+              "diskSizeGB": "[parameters('dataDiskSizeGB')]",
+              "managedDisk": {
+                "storageAccountType": "Premium_LRS"
+              }
+            }
+          ]
+        },
+        "osProfile": {
+          "computerName": "[variables('mongoVmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "linuxConfiguration": "[variables('linuxConfiguration')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('mongoNicName'))]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('mongoNicName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-09-01",
+      "name": "[concat(variables('mongoVmName'), '/bootstrap-mongo')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.1",
+        "autoUpgradeMinorVersion": true,
+        "settings": {},
+        "protectedSettings": {
+          "commandToExecute": "[parameters('mongoBootstrapCommand')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('mongoVmName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "lmsUrl": {
+      "type": "string",
+      "value": "[concat('http://', variables('resolvedLmsHost'))]"
+    },
+    "studioUrl": {
+      "type": "string",
+      "value": "[concat('http://', variables('resolvedCmsHost'))]"
+    },
+    "sshAppCommand": {
+      "type": "string",
+      "value": "[concat('ssh ', parameters('adminUsername'), '@', variables('publicDnsName'))]"
+    },
+    "appPrivateIp": {
+      "type": "string",
+      "value": "[variables('appPrivateIp')]"
+    },
+    "workerPrivateIp": {
+      "type": "string",
+      "value": "[variables('workerPrivateIp')]"
+    },
+    "mysqlPrivateIp": {
+      "type": "string",
+      "value": "[variables('mysqlPrivateIp')]"
+    },
+    "mongoPrivateIp": {
+      "type": "string",
+      "value": "[variables('mongoPrivateIp')]"
+    }
+  }
+}

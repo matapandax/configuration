@@ -1,0 +1,226 @@
+---
+
+# Fixed 4-node Open edX deployment:
+#   openedx_app     - LMS/CMS web node
+#   openedx_worker  - Celery worker, Redis, RabbitMQ
+#   openedx_mysql   - MySQL
+#   openedx_mongo   - MongoDB
+#
+# This playbook is intentionally conservative. It installs the core LMS/CMS
+# stack first and keeps optional services such as ecommerce, discovery,
+# analytics, notes, forum, xqueue, and blockstore disabled until the 4-node
+# base is healthy.
+
+- name: Validate fixed 4-node Open edX inventory
+  hosts: localhost
+  gather_facts: false
+  vars:
+    required_multivm_groups:
+      - openedx_app
+      - openedx_worker
+      - openedx_mysql
+      - openedx_mongo
+  tasks:
+    - name: Assert required inventory groups exist and have one host
+      assert:
+        that:
+          - groups[item] is defined
+          - groups[item] | length == 1
+        fail_msg: "Inventory group {{ item }} must exist and contain exactly one host."
+      with_items: "{{ required_multivm_groups }}"
+
+- name: Deploy MySQL node
+  hosts: openedx_mysql
+  become: true
+  gather_facts: true
+  vars:
+    COMMON_ENABLE_AWS_ROLE: false
+  roles:
+    - mysql
+  post_tasks:
+    - name: Allow MySQL to listen on the private network
+      lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: '^bind-address\s*='
+        line: 'bind-address = {{ multivm_mysql_bind_ip | default(ansible_default_ipv4.address) }}'
+      notify: Restart mysql
+
+    - name: Create Open edX MySQL databases
+      mysql_db:
+        db: "{{ item }}"
+        state: present
+        encoding: utf8
+        login_unix_socket: "{{ mysql_socket }}"
+      when: item != None and item != ''
+      with_items:
+        - "{{ EDXAPP_MYSQL_DB_NAME }}"
+        - "{{ EDXAPP_MYSQL_CSMH_DB_NAME }}"
+
+    - name: Create Open edX MySQL application users
+      mysql_user:
+        name: "{{ item.user }}"
+        password: "{{ item.password }}"
+        host: "{{ item.host }}"
+        priv: "{{ item.db }}.*:ALL"
+        append_privs: true
+        state: present
+        login_unix_socket: "{{ mysql_socket }}"
+      with_items:
+        - db: "{{ EDXAPP_MYSQL_DB_NAME }}"
+          user: "{{ EDXAPP_MYSQL_USER }}"
+          password: "{{ EDXAPP_MYSQL_PASSWORD }}"
+          host: localhost
+        - db: "{{ EDXAPP_MYSQL_DB_NAME }}"
+          user: "{{ EDXAPP_MYSQL_USER }}"
+          password: "{{ EDXAPP_MYSQL_PASSWORD }}"
+          host: "{{ multivm_app_mysql_user_host }}"
+        - db: "{{ EDXAPP_MYSQL_CSMH_DB_NAME }}"
+          user: "{{ EDXAPP_MYSQL_CSMH_USER }}"
+          password: "{{ EDXAPP_MYSQL_CSMH_PASSWORD }}"
+          host: localhost
+        - db: "{{ EDXAPP_MYSQL_CSMH_DB_NAME }}"
+          user: "{{ EDXAPP_MYSQL_CSMH_USER }}"
+          password: "{{ EDXAPP_MYSQL_CSMH_PASSWORD }}"
+          host: "{{ multivm_app_mysql_user_host }}"
+
+    - name: Create Open edX MySQL migration user
+      mysql_user:
+        name: "{{ COMMON_MYSQL_MIGRATE_USER }}"
+        password: "{{ COMMON_MYSQL_MIGRATE_PASS }}"
+        host: "{{ item.host }}"
+        priv: "{{ item.db }}.*:ALL"
+        append_privs: true
+        state: present
+        login_unix_socket: "{{ mysql_socket }}"
+      with_items:
+        - db: "{{ EDXAPP_MYSQL_DB_NAME }}"
+          host: localhost
+        - db: "{{ EDXAPP_MYSQL_DB_NAME }}"
+          host: "{{ multivm_app_mysql_user_host }}"
+        - db: "{{ EDXAPP_MYSQL_CSMH_DB_NAME }}"
+          host: localhost
+        - db: "{{ EDXAPP_MYSQL_CSMH_DB_NAME }}"
+          host: "{{ multivm_app_mysql_user_host }}"
+
+    - name: Create Open edX MySQL read-only user
+      mysql_user:
+        name: "{{ COMMON_MYSQL_READ_ONLY_USER }}"
+        password: "{{ COMMON_MYSQL_READ_ONLY_PASS }}"
+        host: "{{ item }}"
+        priv: "*.*:SELECT"
+        append_privs: true
+        state: present
+        login_unix_socket: "{{ mysql_socket }}"
+      with_items:
+        - localhost
+        - "{{ multivm_app_mysql_user_host }}"
+
+    - name: Create Open edX MySQL admin user
+      mysql_user:
+        name: "{{ COMMON_MYSQL_ADMIN_USER }}"
+        password: "{{ COMMON_MYSQL_ADMIN_PASS }}"
+        host: "{{ item }}"
+        priv: "*.*:CREATE USER"
+        append_privs: true
+        state: present
+        login_unix_socket: "{{ mysql_socket }}"
+      with_items:
+        - localhost
+        - "{{ multivm_app_mysql_user_host }}"
+
+  handlers:
+    - name: Restart mysql
+      service:
+        name: mysql
+        state: restarted
+
+- name: Deploy MongoDB node
+  hosts: openedx_mongo
+  become: true
+  gather_facts: true
+  vars:
+    COMMON_ENABLE_AWS_ROLE: false
+    MONGO_BIND_IP: "{{ multivm_mongo_bind_ip | default('0.0.0.0') }}"
+    MONGO_RS_CONFIG:
+      _id: "{{ MONGO_REPL_SET }}"
+      members:
+        - host: "{{ multivm_mongo_private_ip | default(ansible_default_ipv4.address) }}"
+  roles:
+    - mongo_3_6
+
+- name: Deploy worker, Redis, and RabbitMQ node
+  hosts: openedx_worker
+  become: true
+  gather_facts: true
+  vars:
+    COMMON_ENABLE_AWS_ROLE: false
+    REDIS_BIND_IP: "{{ multivm_worker_private_ip | default(ansible_default_ipv4.address) }}"
+    rabbitmq_ip: "{{ multivm_worker_private_ip | default(ansible_default_ipv4.address) }}"
+  roles:
+    - redis
+    - rabbitmq
+    - role: edxapp
+      celery_worker: true
+  post_tasks:
+    - name: Show worker completion notice
+      debug:
+        msg:
+          - "Worker node is configured."
+          - "Redis/RabbitMQ host: {{ multivm_worker_private_ip | default(ansible_default_ipv4.address) }}"
+          - "MySQL host: {{ EDXAPP_MYSQL_HOST }}"
+          - "MongoDB host: {{ EDXAPP_MONGO_HOSTS }}"
+
+- name: Deploy LMS/CMS app node
+  hosts: openedx_app
+  become: true
+  gather_facts: true
+  vars:
+    migrate_db: "yes"
+    COMMON_ENABLE_AWS_ROLE: false
+    CLUSTER_NAME: 'edxapp'
+    NGINX_ENABLE_SSL: false
+    EDXAPP_PREVIEW_LMS_BASE: 'preview.{{ EDXAPP_LMS_BASE }}'
+    EDXAPP_LOGIN_REDIRECT_WHITELIST:
+      - "{{ EDXAPP_CMS_BASE }}"
+    EDXAPP_ENABLE_CORS_HEADERS: true
+    EDXAPP_ENABLE_CROSS_DOMAIN_CSRF_COOKIE: true
+    EDXAPP_CROSS_DOMAIN_CSRF_COOKIE_DOMAIN: "{{ EDXAPP_LMS_BASE }}"
+    EDXAPP_CROSS_DOMAIN_CSRF_COOKIE_NAME: 'native-csrf-cookie'
+    EDXAPP_LMS_BASE_SCHEME: http
+    COMMON_LMS_BASE_URL: "{{ EDXAPP_LMS_BASE_SCHEME }}://{{ EDXAPP_LMS_BASE }}"
+    EDXAPP_LMS_NGINX_PORT: '80'
+    EDX_PLATFORM_VERSION: 'master'
+    NGINX_SET_X_FORWARDED_HEADERS: true
+    CONFIGURE_JWTS: false
+    SANDBOX_ENABLE_BLOCKSTORE: false
+    SANDBOX_ENABLE_DISCOVERY: false
+    SANDBOX_ENABLE_ECOMMERCE: false
+    SANDBOX_ENABLE_ANALYTICS_API: false
+    SANDBOX_ENABLE_INSIGHTS: false
+    SANDBOX_ENABLE_REDIS: false
+    SANDBOX_ENABLE_NOTES: false
+    DEMO_ROLE_ENABLED: false
+    EDXAPP_ENABLE_MEMCACHE: false
+    EDXAPP_ENABLE_ELASTIC_SEARCH: false
+  roles:
+    - role: swapfile
+      SWAPFILE_SIZE: 4GB
+    - role: nginx
+      nginx_sites:
+        - cms
+        - lms
+      nginx_default_sites:
+        - lms
+    - edxapp
+    - edx_ansible
+  post_tasks:
+    - name: Show fixed 4-node completion notice
+      debug:
+        msg:
+          - "Open edX fixed 4-node core deployment completed."
+          - "LMS host: {{ EDXAPP_LMS_BASE }}"
+          - "Studio host: {{ EDXAPP_CMS_BASE }}"
+          - "MySQL host: {{ EDXAPP_MYSQL_HOST }}"
+          - "MongoDB host: {{ EDXAPP_MONGO_HOSTS }}"
+          - "Redis/RabbitMQ host: {{ EDXAPP_REDIS_HOSTNAME }}"
+          - "Next check on app/worker nodes: sudo /edx/bin/supervisorctl status"

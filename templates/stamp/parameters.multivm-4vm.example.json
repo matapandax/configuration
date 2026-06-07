@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "value": "openedx4vm"
+    },
+    "adminUsername": {
+      "value": "edxicei"
+    },
+    "adminPassword": {
+      "value": "ChangeThisPassword2026!"
+    },
+    "dnsLabelPrefix": {
+      "value": "openedx4vm-demo"
+    },
+    "lmsHostName": {
+      "value": ""
+    },
+    "cmsHostName": {
+      "value": ""
+    },
+    "appVmSize": {
+      "value": "Standard_D4s_v3"
+    },
+    "workerVmSize": {
+      "value": "Standard_D4s_v3"
+    },
+    "mysqlVmSize": {
+      "value": "Standard_D4s_v3"
+    },
+    "mongoVmSize": {
+      "value": "Standard_D4s_v3"
+    },
+    "osDiskSizeGB": {
+      "value": 128
+    },
+    "dataDiskSizeGB": {
+      "value": 256
+    },
+    "allowedSshSource": {
+      "value": "*"
+    }
+  }
+}
