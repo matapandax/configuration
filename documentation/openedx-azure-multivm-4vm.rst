@@ -198,48 +198,6 @@ stack and leaves optional services such as ecommerce, discovery, analytics,
 notes, forum, xqueue, and blockstore disabled until the base 4-node deployment
 is healthy.
 
-Login 500 Error After Install
-*****************************
-
-If the LMS opens but login returns a 500 error and
-``/edx/var/log/supervisor/lms-stderr.log`` contains this error:
-
-::
-
-   json.decoder.JSONDecodeError
-   settings.JWT_AUTH['JWT_PRIVATE_SIGNING_JWK']
-
-make sure JWT generation is enabled in the multi-node variables:
-
-::
-
-   CONFIGURE_JWTS: true
-
-Then rerun the multi-node playbook from the App VM or Ansible control machine:
-
-::
-
-   cd /home/edxicei/openedx-install
-   git pull --ff-only
-
-   export OPENEDX_RELEASE="open-release/koa.master"
-   export CONFIGURATION_VERSION="open-release/koa.master"
-   export CONFIGURATION_REPO="https://github.com/matapandax/configuration.git"
-
-   ansible-playbook \
-     -i playbooks/inventory-multivm-4vm.example.ini \
-     playbooks/openedx_multivm_4vm.yml \
-     -e @playbooks/sample_vars/multivm-4vm.yml \
-     -e CONFIGURE_JWTS=true
-
-After the playbook finishes, confirm the LMS config contains a generated private
-signing key:
-
-::
-
-   sudo grep -n "JWT_PRIVATE_SIGNING_JWK" /edx/etc/lms.yml
-   sudo /edx/bin/supervisorctl restart lms cms
-
 Recommended VM Sizes
 ********************
 
