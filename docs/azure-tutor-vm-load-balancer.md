@@ -94,6 +94,7 @@ MODE=launch \
 ## Checks
 
 ```bash
+export KUBECONFIG=$HOME/.kube/config
 kubectl get nodes
 kubectl --namespace openedx get pods,svc
 tutor k8s status

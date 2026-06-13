@@ -30,11 +30,12 @@ install_system_dependencies() {
 
 install_k3s() {
   if ! command -v k3s >/dev/null 2>&1; then
-    curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL="${K3S_CHANNEL}" sh -s - server --disable traefik
+    curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL="${K3S_CHANNEL}" sh -s - server --disable traefik --write-kubeconfig-mode 644
   fi
 
   sudo systemctl enable k3s
   sudo systemctl start k3s
+  sudo chmod 644 /etc/rancher/k3s/k3s.yaml
 
   mkdir -p "${HOME}/.kube"
   sudo cp /etc/rancher/k3s/k3s.yaml "${HOME}/.kube/config"
