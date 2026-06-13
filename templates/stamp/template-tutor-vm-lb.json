@@ -76,49 +76,6 @@
       "metadata": {
         "description": "Load Balancer frontend port mapped to VM SSH port 22."
       }
-    },
-    "dnsZoneName": {
-      "type": "string",
-      "defaultValue": "iceiedx.id",
-      "metadata": {
-        "description": "Azure DNS zone name that will host the Open edX records."
-      }
-    },
-    "lmsRecordName": {
-      "type": "string",
-      "defaultValue": "learn",
-      "metadata": {
-        "description": "A record name for LMS."
-      }
-    },
-    "cmsRecordName": {
-      "type": "string",
-      "defaultValue": "studio",
-      "metadata": {
-        "description": "A record name for Studio."
-      }
-    },
-    "mfeRecordName": {
-      "type": "string",
-      "defaultValue": "apps",
-      "metadata": {
-        "description": "A record name for MFE."
-      }
-    },
-    "minioRecordName": {
-      "type": "string",
-      "defaultValue": "minio.learn",
-      "metadata": {
-        "description": "A record name for MinIO."
-      }
-    },
-    "dnsRecordTtl": {
-      "type": "int",
-      "defaultValue": 300,
-      "minValue": 60,
-      "metadata": {
-        "description": "TTL in seconds for Azure DNS A records."
-      }
     }
   },
   "variables": {
@@ -165,12 +122,6 @@
           "domainNameLabel": "[parameters('dnsLabelPrefix')]"
         }
       }
-    },
-    {
-      "type": "Microsoft.Network/dnsZones",
-      "apiVersion": "2018-05-01",
-      "name": "[parameters('dnsZoneName')]",
-      "location": "global"
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
@@ -403,74 +354,6 @@
       }
     },
     {
-      "type": "Microsoft.Network/dnsZones/A",
-      "apiVersion": "2018-05-01",
-      "name": "[format('{0}/{1}', parameters('dnsZoneName'), parameters('lmsRecordName'))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/dnsZones', parameters('dnsZoneName'))]",
-        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
-      ],
-      "properties": {
-        "TTL": "[parameters('dnsRecordTtl')]",
-        "ARecords": [
-          {
-            "ipv4Address": "[reference(variables('publicIpId')).ipAddress]"
-          }
-        ]
-      }
-    },
-    {
-      "type": "Microsoft.Network/dnsZones/A",
-      "apiVersion": "2018-05-01",
-      "name": "[format('{0}/{1}', parameters('dnsZoneName'), parameters('cmsRecordName'))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/dnsZones', parameters('dnsZoneName'))]",
-        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
-      ],
-      "properties": {
-        "TTL": "[parameters('dnsRecordTtl')]",
-        "ARecords": [
-          {
-            "ipv4Address": "[reference(variables('publicIpId')).ipAddress]"
-          }
-        ]
-      }
-    },
-    {
-      "type": "Microsoft.Network/dnsZones/A",
-      "apiVersion": "2018-05-01",
-      "name": "[format('{0}/{1}', parameters('dnsZoneName'), parameters('mfeRecordName'))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/dnsZones', parameters('dnsZoneName'))]",
-        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
-      ],
-      "properties": {
-        "TTL": "[parameters('dnsRecordTtl')]",
-        "ARecords": [
-          {
-            "ipv4Address": "[reference(variables('publicIpId')).ipAddress]"
-          }
-        ]
-      }
-    },
-    {
-      "type": "Microsoft.Network/dnsZones/A",
-      "apiVersion": "2018-05-01",
-      "name": "[format('{0}/{1}', parameters('dnsZoneName'), parameters('minioRecordName'))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/dnsZones', parameters('dnsZoneName'))]",
-        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
-      ],
-      "properties": {
-        "TTL": "[parameters('dnsRecordTtl')]",
-        "ARecords": [
-          {
-            "ipv4Address": "[reference(variables('publicIpId')).ipAddress]"
-          }
-        ]
-      }
-    },
-    {
       "type": "Microsoft.Compute/virtualMachines",
       "apiVersion": "2023-09-01",
       "name": "[variables('vmName')]",
@@ -525,25 +408,21 @@
       "type": "string",
       "value": "[reference(variables('publicIpId')).ipAddress]"
     },
-    "dnsZoneName": {
-      "type": "string",
-      "value": "[parameters('dnsZoneName')]"
-    },
     "lmsHost": {
       "type": "string",
-      "value": "[format('{0}.{1}', parameters('lmsRecordName'), parameters('dnsZoneName'))]"
+      "value": "[format('staging.{0}.sslip.io', reference(variables('publicIpId')).ipAddress)]"
     },
     "cmsHost": {
       "type": "string",
-      "value": "[format('{0}.{1}', parameters('cmsRecordName'), parameters('dnsZoneName'))]"
+      "value": "[format('studio-staging.{0}.sslip.io', reference(variables('publicIpId')).ipAddress)]"
     },
     "mfeHost": {
       "type": "string",
-      "value": "[format('{0}.{1}', parameters('mfeRecordName'), parameters('dnsZoneName'))]"
+      "value": "[format('apps.staging.{0}.sslip.io', reference(variables('publicIpId')).ipAddress)]"
     },
     "minioHost": {
       "type": "string",
-      "value": "[format('{0}.{1}', parameters('minioRecordName'), parameters('dnsZoneName'))]"
+      "value": "[format('minio.staging.{0}.sslip.io', reference(variables('publicIpId')).ipAddress)]"
     },
     "vmName": {
       "type": "string",

@@ -102,7 +102,7 @@ case "${MODE}" in
     echo
     echo "Tutor Caddy was requested as a Kubernetes LoadBalancer service inside k3s."
     echo "Azure Load Balancer must point ports 80 and 443 to this VM."
-    echo "Point Azure DNS records to the Azure Load Balancer public IP, then rerun with MODE=launch."
+    echo "Use sslip.io hostnames based on the Azure Load Balancer public IP, then rerun with MODE=launch."
     show_status
     ;;
   launch)

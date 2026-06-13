@@ -1,11 +1,11 @@
 # Open edX Tutor k3s on Azure VM with Load Balancer
 
-Use this path for staging when AKS is not available but you still want Kubernetes.
+Use this path for staging when AKS and custom DNS are not available, but you still want Kubernetes.
 
 Architecture:
 
 ```text
-Azure DNS
+sslip.io hostname
   -> Azure Standard Load Balancer public IP
   -> Ubuntu VM
   -> k3s Kubernetes
@@ -28,34 +28,39 @@ The template creates:
 
 - Standard public IP
 - Azure Standard Load Balancer
-- Azure DNS zone and A records
 - HTTP rule on port `80`
 - HTTPS rule on port `443`
 - SSH NAT rule on port `50023`
 - Ubuntu 22.04 VM in the backend pool
 - NSG rules for HTTP, HTTPS, SSH NAT, and Azure Load Balancer probes
 
-## Azure DNS
+## Hostnames
 
-The staging parameter file creates these records in `iceiedx.id`:
+After deployment, copy the output `loadBalancerPublicIp`.
+
+If the IP is `20.24.42.95`, use these hostnames:
 
 ```text
-staging.iceiedx.id
-studio-staging.iceiedx.id
-apps.staging.iceiedx.id
-minio.staging.iceiedx.id
+staging.20.24.42.95.sslip.io
+studio-staging.20.24.42.95.sslip.io
+apps.staging.20.24.42.95.sslip.io
+minio.staging.20.24.42.95.sslip.io
 ```
 
-All records point to the Azure Load Balancer public IP.
+Check that they resolve:
 
-If the DNS zone is new, open the Azure DNS zone after deployment and copy its Azure nameservers to the domain registrar. DNS records will exist in Azure, but the public internet will only use them after the domain delegates to Azure DNS.
+```bash
+nslookup staging.<load-balancer-ip>.sslip.io
+nslookup studio-staging.<load-balancer-ip>.sslip.io
+nslookup apps.staging.<load-balancer-ip>.sslip.io
+```
 
 ## SSH to the VM
 
 Use the template output `sshCommand`, or:
 
 ```bash
-ssh -p 50023 edxicei@<staging-load-balancer-ip>
+ssh -p 50023 edxicei@<load-balancer-ip>
 ```
 
 ## Install Tutor on k3s
@@ -71,22 +76,22 @@ Prepare k3s, Tutor, Caddy, MFE, and MinIO:
 
 ```bash
 PLATFORM_NAME="Open edX Staging" \
-LMS_HOST=staging.iceiedx.id \
-CMS_HOST=studio-staging.iceiedx.id \
-MFE_HOST=apps.staging.iceiedx.id \
-CONTACT_EMAIL=admin@iceiedx.id \
+LMS_HOST=staging.<load-balancer-ip>.sslip.io \
+CMS_HOST=studio-staging.<load-balancer-ip>.sslip.io \
+MFE_HOST=apps.staging.<load-balancer-ip>.sslip.io \
+CONTACT_EMAIL=admin@example.com \
 MODE=prepare \
 ./util/install/install-tutor-k3s-vm-lb.sh
 ```
 
-After DNS resolves, launch Open edX on k3s:
+After hostnames resolve, launch Open edX on k3s:
 
 ```bash
 PLATFORM_NAME="Open edX Staging" \
-LMS_HOST=staging.iceiedx.id \
-CMS_HOST=studio-staging.iceiedx.id \
-MFE_HOST=apps.staging.iceiedx.id \
-CONTACT_EMAIL=admin@iceiedx.id \
+LMS_HOST=staging.<load-balancer-ip>.sslip.io \
+CMS_HOST=studio-staging.<load-balancer-ip>.sslip.io \
+MFE_HOST=apps.staging.<load-balancer-ip>.sslip.io \
+CONTACT_EMAIL=admin@example.com \
 MODE=launch \
 ./util/install/install-tutor-k3s-vm-lb.sh
 ```
@@ -110,5 +115,5 @@ MFE is enabled by default:
 
 ```bash
 ENABLE_MFE=1
-MFE_HOST=apps.staging.iceiedx.id
+MFE_HOST=apps.staging.<load-balancer-ip>.sslip.io
 ```
