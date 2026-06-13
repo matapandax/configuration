@@ -11,6 +11,14 @@ MODE="${MODE:-prepare}"
 TUTOR_PACKAGE_SPEC="${TUTOR_PACKAGE_SPEC:-tutor[full]>=21.0.0,<22.0.0}"
 ENABLE_MINIO="${ENABLE_MINIO:-1}"
 
+show_load_balancer() {
+  echo
+  echo "Azure Load Balancer service:"
+  kubectl --namespace openedx get services/caddy --output wide
+  echo
+  echo "Use the EXTERNAL-IP above for the LMS, Studio, and optional MinIO DNS records."
+}
+
 if ! command -v az >/dev/null 2>&1; then
   echo "Azure CLI is required. Install it, run az login, then retry." >&2
   exit 1
@@ -46,10 +54,8 @@ fi
 case "${MODE}" in
   prepare)
     tutor k8s start caddy
-    echo
-    echo "Caddy load balancer requested. Wait for EXTERNAL-IP, then point DNS records to it:"
-    kubectl --namespace openedx get services/caddy
-    echo
+    echo "Caddy was requested as a Kubernetes LoadBalancer service."
+    show_load_balancer
     echo "After DNS resolves, run this script again with MODE=launch."
     ;;
   launch)
@@ -58,7 +64,7 @@ case "${MODE}" in
     ;;
   status)
     tutor k8s status
-    kubectl --namespace openedx get services/caddy
+    show_load_balancer
     ;;
   *)
     echo "Unknown MODE=${MODE}. Use prepare, launch, or status." >&2

@@ -63,6 +63,16 @@
         "description": "OS disk size in GB for each AKS node."
       }
     },
+    "loadBalancerSku": {
+      "type": "string",
+      "defaultValue": "standard",
+      "allowedValues": [
+        "standard"
+      ],
+      "metadata": {
+        "description": "Azure Load Balancer SKU used by AKS for Kubernetes LoadBalancer services."
+      }
+    },
     "acrSku": {
       "type": "string",
       "defaultValue": "Standard",
@@ -158,7 +168,7 @@
         ],
         "networkProfile": {
           "networkPlugin": "kubenet",
-          "loadBalancerSku": "standard",
+          "loadBalancerSku": "[parameters('loadBalancerSku')]",
           "outboundType": "loadBalancer",
           "serviceCidr": "10.0.0.0/16",
           "dnsServiceIP": "10.0.0.10",
@@ -191,6 +201,10 @@
     "tutorPrepareCommand": {
       "type": "string",
       "value": "[concat('RESOURCE_GROUP=', resourceGroup().name, ' AKS_NAME=', variables('aksName'), ' LMS_HOST=<lms-domain> CMS_HOST=<studio-domain> CONTACT_EMAIL=<email> MODE=prepare ./util/install/install-tutor-k8s-aks.sh')]"
+    },
+    "loadBalancerStatusCommand": {
+      "type": "string",
+      "value": "kubectl --namespace openedx get services/caddy --output wide"
     },
     "attachAcrCommand": {
       "type": "string",

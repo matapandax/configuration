@@ -23,6 +23,9 @@
     "osDiskSizeGB": {
       "value": 128
     },
+    "loadBalancerSku": {
+      "value": "standard"
+    },
     "acrSku": {
       "value": "Standard"
     },

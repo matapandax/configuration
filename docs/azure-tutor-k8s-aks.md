@@ -3,11 +3,12 @@
 This template creates the Azure foundation for a Tutor Kubernetes deployment:
 
 - Azure Kubernetes Service with autoscaling Linux nodes
+- Azure Standard Load Balancer for the public Tutor `caddy` endpoint
 - Azure Container Registry for custom Tutor images
 - Log Analytics integration
 - AKS managed identity
 
-Tutor itself is applied after the AKS cluster exists, because DNS must point to the Kubernetes `caddy` load balancer before HTTPS certificates can be issued.
+Tutor itself is applied after the AKS cluster exists. The public entry point is the Tutor `caddy` Kubernetes service with `type=LoadBalancer`; AKS provisions an Azure Standard Load Balancer and public IP for that service. DNS must point to this load balancer IP before HTTPS certificates can be issued.
 
 ## Deploy Azure Resources
 
@@ -36,10 +37,10 @@ MODE=prepare \
 ./util/install/install-tutor-k8s-aks.sh
 ```
 
-The script starts only the Tutor `caddy` service first. Check the external IP:
+The script starts only the Tutor `caddy` service first. This creates the Azure Load Balancer endpoint. Check the external IP:
 
 ```bash
-kubectl --namespace openedx get services/caddy
+kubectl --namespace openedx get services/caddy --output wide
 ```
 
 Create DNS records:
