@@ -12,6 +12,17 @@ Azure DNS
   -> Open edX LMS, Studio, MFE
 ```
 
+For a Kubernetes-in-VM deployment, use the same Azure template but run the k3s installer script. The architecture becomes:
+
+```text
+Azure DNS
+  -> Azure Standard Load Balancer public IP
+  -> Ubuntu VM
+  -> k3s Kubernetes
+  -> Tutor k8s Caddy
+  -> Open edX LMS, Studio, MFE
+```
+
 ## Deploy Azure Resources
 
 For staging, use a separate resource group and the staging parameter file:
@@ -176,4 +187,43 @@ MFE is enabled by default with:
 ```bash
 ENABLE_MFE=1
 MFE_HOST=apps.<LMS_HOST>
+```
+
+## Install Tutor on k3s
+
+Use this option if you want Kubernetes installed inside the VM instead of AKS.
+
+For staging:
+
+```bash
+git clone --branch openedx-tutor https://github.com/matapandax/configuration.git
+cd configuration
+
+PLATFORM_NAME="Open edX Staging" \
+LMS_HOST=staging.iceiedx.id \
+CMS_HOST=studio-staging.iceiedx.id \
+MFE_HOST=apps-staging.iceiedx.id \
+CONTACT_EMAIL=admin@iceiedx.id \
+MODE=prepare \
+./util/install/install-tutor-k3s-vm-lb.sh
+```
+
+After DNS resolves, launch staging on k3s:
+
+```bash
+PLATFORM_NAME="Open edX Staging" \
+LMS_HOST=staging.iceiedx.id \
+CMS_HOST=studio-staging.iceiedx.id \
+MFE_HOST=apps-staging.iceiedx.id \
+CONTACT_EMAIL=admin@iceiedx.id \
+MODE=launch \
+./util/install/install-tutor-k3s-vm-lb.sh
+```
+
+Useful checks:
+
+```bash
+kubectl get nodes
+kubectl --namespace openedx get pods,svc
+tutor k8s status
 ```
