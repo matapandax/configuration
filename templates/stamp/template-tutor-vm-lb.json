@@ -1,0 +1,415 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Single-VM Azure template for Open edX Tutor behind an Azure Standard Load Balancer."
+  },
+  "parameters": {
+    "clusterName": {
+      "type": "string",
+      "defaultValue": "openedxtutor",
+      "minLength": 3,
+      "maxLength": 18,
+      "metadata": {
+        "description": "Short lowercase name used for Azure resources. Use letters and numbers only."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "edxicei",
+      "metadata": {
+        "description": "Linux admin username for the VM."
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "minLength": 12,
+      "metadata": {
+        "description": "Password for the Linux VM admin user."
+      }
+    },
+    "dnsLabelPrefix": {
+      "type": "string",
+      "defaultValue": "[concat('openedxtutor', uniqueString(resourceGroup().id))]",
+      "metadata": {
+        "description": "DNS label for the Azure Load Balancer public IP."
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4s_v5",
+      "metadata": {
+        "description": "VM size for Tutor. Standard_D4s_v5 is a practical minimum starting point."
+      }
+    },
+    "ubuntuSku": {
+      "type": "string",
+      "defaultValue": "22_04-lts-gen2",
+      "allowedValues": [
+        "22_04-lts",
+        "22_04-lts-gen2"
+      ],
+      "metadata": {
+        "description": "Ubuntu 22.04 image SKU."
+      }
+    },
+    "osDiskSizeGB": {
+      "type": "int",
+      "defaultValue": 256,
+      "minValue": 128,
+      "metadata": {
+        "description": "OS disk size in GB."
+      }
+    },
+    "allowedSshSource": {
+      "type": "string",
+      "defaultValue": "*",
+      "metadata": {
+        "description": "Source CIDR allowed to SSH through the Load Balancer NAT rule. Use your public IP with /32 for production."
+      }
+    },
+    "sshFrontendPort": {
+      "type": "int",
+      "defaultValue": 50022,
+      "minValue": 1024,
+      "maxValue": 65535,
+      "metadata": {
+        "description": "Load Balancer frontend port mapped to VM SSH port 22."
+      }
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "vnetName": "[concat(parameters('clusterName'), '-vnet')]",
+    "subnetName": "tutor-subnet",
+    "nsgName": "[concat(parameters('clusterName'), '-nsg')]",
+    "publicIpName": "[concat(parameters('clusterName'), '-lb-pip')]",
+    "lbName": "[concat(parameters('clusterName'), '-lb')]",
+    "lbFrontendName": "public-frontend",
+    "lbBackendPoolName": "tutor-backend-pool",
+    "httpProbeName": "http-probe",
+    "httpsProbeName": "https-probe",
+    "sshNatRuleName": "ssh-nat-rule",
+    "vmName": "[concat(parameters('clusterName'), '-vm')]",
+    "nicName": "[concat(parameters('clusterName'), '-nic')]",
+    "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
+    "lbFrontendId": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('lbName'), variables('lbFrontendName'))]",
+    "lbBackendPoolId": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('lbName'), variables('lbBackendPoolName'))]",
+    "sshNatRuleId": "[resourceId('Microsoft.Network/loadBalancers/inboundNatRules', variables('lbName'), variables('sshNatRuleName'))]",
+    "linuxConfiguration": {
+      "disablePasswordAuthentication": false
+    },
+    "imageReference": {
+      "publisher": "Canonical",
+      "offer": "0001-com-ubuntu-server-jammy",
+      "sku": "[parameters('ubuntuSku')]",
+      "version": "latest"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('publicIpName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[parameters('dnsLabelPrefix')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nsgName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "AllowHttp",
+            "properties": {
+              "priority": 1000,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "80"
+            }
+          },
+          {
+            "name": "AllowHttps",
+            "properties": {
+              "priority": 1010,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "443"
+            }
+          },
+          {
+            "name": "AllowSshNat",
+            "properties": {
+              "priority": 1020,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "[parameters('allowedSshSource')]",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "22"
+            }
+          },
+          {
+            "name": "AllowAzureLoadBalancer",
+            "properties": {
+              "priority": 1030,
+              "protocol": "*",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "AzureLoadBalancer",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "*"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vnetName')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.250.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetName')]",
+            "properties": {
+              "addressPrefix": "10.250.0.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/loadBalancers",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('lbName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "[variables('lbFrontendName')]",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('lbBackendPoolName')]"
+          }
+        ],
+        "probes": [
+          {
+            "name": "[variables('httpProbeName')]",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 80,
+              "intervalInSeconds": 15,
+              "numberOfProbes": 2
+            }
+          },
+          {
+            "name": "[variables('httpsProbeName')]",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 443,
+              "intervalInSeconds": 15,
+              "numberOfProbes": 2
+            }
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "name": "http-rule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[variables('lbFrontendId')]"
+              },
+              "backendAddressPool": {
+                "id": "[variables('lbBackendPoolId')]"
+              },
+              "probe": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', variables('lbName'), variables('httpProbeName'))]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 80,
+              "backendPort": 80,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 4,
+              "loadDistribution": "Default",
+              "disableOutboundSnat": false
+            }
+          },
+          {
+            "name": "https-rule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[variables('lbFrontendId')]"
+              },
+              "backendAddressPool": {
+                "id": "[variables('lbBackendPoolId')]"
+              },
+              "probe": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', variables('lbName'), variables('httpsProbeName'))]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 443,
+              "backendPort": 443,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 4,
+              "loadDistribution": "Default",
+              "disableOutboundSnat": false
+            }
+          }
+        ],
+        "inboundNatRules": [
+          {
+            "name": "[variables('sshNatRuleName')]",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[variables('lbFrontendId')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": "[parameters('sshFrontendPort')]",
+              "backendPort": 22,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nicName')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+        "[resourceId('Microsoft.Network/loadBalancers', variables('lbName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetId')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[variables('lbBackendPoolId')]"
+                }
+              ],
+              "loadBalancerInboundNatRules": [
+                {
+                  "id": "[variables('sshNatRuleId')]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vmName')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": "[variables('imageReference')]",
+          "osDisk": {
+            "createOption": "FromImage",
+            "diskSizeGB": "[parameters('osDiskSizeGB')]",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "osProfile": {
+          "computerName": "[variables('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "linuxConfiguration": "[variables('linuxConfiguration')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "loadBalancerName": {
+      "type": "string",
+      "value": "[variables('lbName')]"
+    },
+    "loadBalancerPublicIpName": {
+      "type": "string",
+      "value": "[variables('publicIpName')]"
+    },
+    "loadBalancerFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))).dnsSettings.fqdn]"
+    },
+    "vmName": {
+      "type": "string",
+      "value": "[variables('vmName')]"
+    },
+    "sshCommand": {
+      "type": "string",
+      "value": "[concat('ssh -p ', parameters('sshFrontendPort'), ' ', parameters('adminUsername'), '@', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))).ipAddress)]"
+    }
+  }
+}
