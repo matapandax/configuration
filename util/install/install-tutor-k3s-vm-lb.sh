@@ -30,7 +30,7 @@ install_system_dependencies() {
 
 install_k3s() {
   if ! command -v k3s >/dev/null 2>&1; then
-    curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL="${K3S_CHANNEL}" sh -s - server
+    curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL="${K3S_CHANNEL}" sh -s - server --disable traefik
   fi
 
   sudo systemctl enable k3s

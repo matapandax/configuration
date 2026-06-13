@@ -521,6 +521,10 @@
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))).dnsSettings.fqdn]"
     },
+    "loadBalancerPublicIp": {
+      "type": "string",
+      "value": "[reference(variables('publicIpId')).ipAddress]"
+    },
     "dnsZoneName": {
       "type": "string",
       "value": "[parameters('dnsZoneName')]"
