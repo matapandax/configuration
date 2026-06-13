@@ -7,6 +7,7 @@ This template creates the Azure foundation for a Tutor Kubernetes deployment:
 - Azure Container Registry for custom Tutor images
 - Log Analytics integration
 - AKS managed identity
+- Tutor MFE plugin enabled by default
 
 Tutor itself is applied after the AKS cluster exists. The public entry point is the Tutor `caddy` Kubernetes service with `type=LoadBalancer`; AKS provisions an Azure Standard Load Balancer and public IP for that service. DNS must point to this load balancer IP before HTTPS certificates can be issued.
 
@@ -33,9 +34,12 @@ AKS_NAME=<cluster-name>-aks \
 LMS_HOST=learn.example.com \
 CMS_HOST=studio.example.com \
 CONTACT_EMAIL=admin@example.com \
+MFE_HOST=apps.example.com \
 MODE=prepare \
 ./util/install/install-tutor-k8s-aks.sh
 ```
+
+By default the script enables Tutor MFE and uses `apps.<LMS_HOST>` as `MFE_HOST`. Set `MFE_HOST` explicitly, as shown above, if you want a cleaner hostname such as `apps.example.com`.
 
 The script starts only the Tutor `caddy` service first. This creates the Azure Load Balancer endpoint. Check the external IP:
 
@@ -47,6 +51,7 @@ Create DNS records:
 
 - `LMS_HOST` A record points to the Caddy external IP
 - `CMS_HOST` A record points to the same Caddy external IP
+- `MFE_HOST` A record points to the same Caddy external IP. By default this is `apps.<LMS_HOST>`.
 - If MinIO is enabled, point `minio.<LMS_HOST>` to the same external IP
 
 ## Launch Open edX
@@ -59,6 +64,7 @@ AKS_NAME=<cluster-name>-aks \
 LMS_HOST=learn.example.com \
 CMS_HOST=studio.example.com \
 CONTACT_EMAIL=admin@example.com \
+MFE_HOST=apps.example.com \
 MODE=launch \
 ./util/install/install-tutor-k8s-aks.sh
 ```
@@ -69,6 +75,13 @@ Useful checks:
 tutor k8s status
 kubectl --namespace openedx get pods
 kubectl --namespace openedx get services/caddy
+```
+
+MFE checks:
+
+```bash
+tutor config printvalue MFE_HOST
+tutor plugins list
 ```
 
 If you build custom Tutor images and push them to the Azure Container Registry from this template, attach the registry to AKS:

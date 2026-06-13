@@ -10,13 +10,15 @@ PLATFORM_NAME="${PLATFORM_NAME:-Open edX}"
 MODE="${MODE:-prepare}"
 TUTOR_PACKAGE_SPEC="${TUTOR_PACKAGE_SPEC:-tutor[full]>=21.0.0,<22.0.0}"
 ENABLE_MINIO="${ENABLE_MINIO:-1}"
+ENABLE_MFE="${ENABLE_MFE:-1}"
+MFE_HOST="${MFE_HOST:-apps.${LMS_HOST}}"
 
 show_load_balancer() {
   echo
   echo "Azure Load Balancer service:"
   kubectl --namespace openedx get services/caddy --output wide
   echo
-  echo "Use the EXTERNAL-IP above for the LMS, Studio, and optional MinIO DNS records."
+  echo "Use the EXTERNAL-IP above for the LMS, Studio, MFE, and optional MinIO DNS records."
 }
 
 if ! command -v az >/dev/null 2>&1; then
@@ -42,9 +44,16 @@ export PATH="${HOME}/.local/bin:${PATH}"
 tutor config save \
   --set "LMS_HOST=${LMS_HOST}" \
   --set "CMS_HOST=${CMS_HOST}" \
+  --set "MFE_HOST=${MFE_HOST}" \
   --set "PLATFORM_NAME=${PLATFORM_NAME}" \
   --set "CONTACT_EMAIL=${CONTACT_EMAIL}" \
   --set "ENABLE_HTTPS=true"
+
+if [ "${ENABLE_MFE}" = "1" ]; then
+  tutor plugins install mfe
+  tutor plugins enable mfe
+  tutor config save --set "MFE_HOST=${MFE_HOST}"
+fi
 
 if [ "${ENABLE_MINIO}" = "1" ]; then
   tutor plugins enable minio
