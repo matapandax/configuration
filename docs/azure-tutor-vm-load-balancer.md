@@ -14,6 +14,17 @@ Azure DNS
 
 ## Deploy Azure Resources
 
+For staging, use a separate resource group and the staging parameter file:
+
+```bash
+az deployment group create \
+  --resource-group <staging-resource-group> \
+  --template-file templates/stamp/template-tutor-vm-lb.json \
+  --parameters @templates/stamp/parameters.tutor-vm-lb.staging.example.json
+```
+
+For production, use:
+
 ```bash
 az deployment group create \
   --resource-group <resource-group> \
@@ -35,7 +46,25 @@ The template creates:
 
 After deployment, get the Load Balancer public IP from the template output or Azure Portal.
 
-In Azure DNS zone, create these `A` records pointing to the Load Balancer public IP:
+In Azure DNS zone, create these `A` records pointing to the staging Load Balancer public IP:
+
+```text
+staging.<zone>
+studio-staging.<zone>
+apps-staging.<zone>
+minio.staging.<zone>
+```
+
+Example for staging on `iceiedx.id`:
+
+```text
+staging.iceiedx.id        A  <staging-load-balancer-ip>
+studio-staging.iceiedx.id A  <staging-load-balancer-ip>
+apps-staging.iceiedx.id   A  <staging-load-balancer-ip>
+minio.staging.iceiedx.id  A  <staging-load-balancer-ip>
+```
+
+For production, create these `A` records pointing to the production Load Balancer public IP:
 
 ```text
 learn.<zone>
@@ -55,7 +84,13 @@ minio.learn.iceiedx.id A  <load-balancer-ip>
 
 ## SSH to the VM
 
-Use the template output `sshCommand`, or:
+For staging, use the template output `sshCommand`, or:
+
+```bash
+ssh -p 50023 edxicei@<staging-load-balancer-ip>
+```
+
+For production:
 
 ```bash
 ssh -p 50022 edxicei@<load-balancer-ip>
@@ -64,6 +99,35 @@ ssh -p 50022 edxicei@<load-balancer-ip>
 ## Install Tutor
 
 Clone this branch on the VM, then run:
+
+For staging:
+
+```bash
+git clone --branch openedx-tutor https://github.com/matapandax/configuration.git
+cd configuration
+
+PLATFORM_NAME="Open edX Staging" \
+LMS_HOST=staging.iceiedx.id \
+CMS_HOST=studio-staging.iceiedx.id \
+MFE_HOST=apps-staging.iceiedx.id \
+CONTACT_EMAIL=admin@iceiedx.id \
+MODE=prepare \
+./util/install/install-tutor-vm-lb.sh
+```
+
+After Azure DNS resolves, launch staging:
+
+```bash
+PLATFORM_NAME="Open edX Staging" \
+LMS_HOST=staging.iceiedx.id \
+CMS_HOST=studio-staging.iceiedx.id \
+MFE_HOST=apps-staging.iceiedx.id \
+CONTACT_EMAIL=admin@iceiedx.id \
+MODE=launch \
+./util/install/install-tutor-vm-lb.sh
+```
+
+For production:
 
 ```bash
 git clone --branch openedx-tutor https://github.com/matapandax/configuration.git

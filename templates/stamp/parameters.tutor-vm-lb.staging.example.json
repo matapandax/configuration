@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "value": "openedxtutorstg"
+    },
+    "adminUsername": {
+      "value": "edxicei"
+    },
+    "adminPassword": {
+      "value": "ChangeThisPassword2026!"
+    },
+    "dnsLabelPrefix": {
+      "value": "openedxtutor-staging"
+    },
+    "vmSize": {
+      "value": "Standard_D4s_v5"
+    },
+    "ubuntuSku": {
+      "value": "22_04-lts-gen2"
+    },
+    "osDiskSizeGB": {
+      "value": 128
+    },
+    "allowedSshSource": {
+      "value": "*"
+    },
+    "sshFrontendPort": {
+      "value": 50023
+    }
+  }
+}
