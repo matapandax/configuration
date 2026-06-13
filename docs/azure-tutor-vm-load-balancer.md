@@ -36,6 +36,7 @@ The template creates:
 
 - Standard public IP
 - Azure Standard Load Balancer
+- Azure DNS zone and A records
 - HTTP rule on port `80`
 - HTTPS rule on port `443`
 - SSH NAT rule on port `50022`
@@ -44,9 +45,19 @@ The template creates:
 
 ## Azure DNS
 
-After deployment, get the Load Balancer public IP from the template output or Azure Portal.
+The template creates an Azure DNS zone and the required `A` records automatically. Set `dnsZoneName` in the parameter file before deployment.
 
-In Azure DNS zone, create these `A` records pointing to the staging Load Balancer public IP:
+For staging, the default parameter file creates:
+
+```text
+dnsZoneName: iceiedx.id
+lmsRecordName: staging
+cmsRecordName: studio-staging
+mfeRecordName: apps-staging
+minioRecordName: minio.staging
+```
+
+Those become:
 
 ```text
 staging.<zone>
@@ -64,7 +75,7 @@ apps-staging.iceiedx.id   A  <staging-load-balancer-ip>
 minio.staging.iceiedx.id  A  <staging-load-balancer-ip>
 ```
 
-For production, create these `A` records pointing to the production Load Balancer public IP:
+For production, the default parameter file creates:
 
 ```text
 learn.<zone>
@@ -81,6 +92,8 @@ studio.iceiedx.id      A  <load-balancer-ip>
 apps.iceiedx.id        A  <load-balancer-ip>
 minio.learn.iceiedx.id A  <load-balancer-ip>
 ```
+
+If the DNS zone is new, open the Azure DNS zone after deployment and copy its Azure nameservers to the domain registrar. DNS records will exist in Azure, but the public internet will only use them after the domain delegates to Azure DNS.
 
 ## SSH to the VM
 

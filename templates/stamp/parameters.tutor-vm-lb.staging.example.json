@@ -28,6 +28,24 @@
     },
     "sshFrontendPort": {
       "value": 50023
+    },
+    "dnsZoneName": {
+      "value": "iceiedx.id"
+    },
+    "lmsRecordName": {
+      "value": "staging"
+    },
+    "cmsRecordName": {
+      "value": "studio-staging"
+    },
+    "mfeRecordName": {
+      "value": "apps-staging"
+    },
+    "minioRecordName": {
+      "value": "minio.staging"
+    },
+    "dnsRecordTtl": {
+      "value": 300
     }
   }
 }

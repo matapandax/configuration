@@ -76,6 +76,49 @@
       "metadata": {
         "description": "Load Balancer frontend port mapped to VM SSH port 22."
       }
+    },
+    "dnsZoneName": {
+      "type": "string",
+      "defaultValue": "iceiedx.id",
+      "metadata": {
+        "description": "Azure DNS zone name that will host the Open edX records."
+      }
+    },
+    "lmsRecordName": {
+      "type": "string",
+      "defaultValue": "learn",
+      "metadata": {
+        "description": "A record name for LMS."
+      }
+    },
+    "cmsRecordName": {
+      "type": "string",
+      "defaultValue": "studio",
+      "metadata": {
+        "description": "A record name for Studio."
+      }
+    },
+    "mfeRecordName": {
+      "type": "string",
+      "defaultValue": "apps",
+      "metadata": {
+        "description": "A record name for MFE."
+      }
+    },
+    "minioRecordName": {
+      "type": "string",
+      "defaultValue": "minio.learn",
+      "metadata": {
+        "description": "A record name for MinIO."
+      }
+    },
+    "dnsRecordTtl": {
+      "type": "int",
+      "defaultValue": 300,
+      "minValue": 60,
+      "metadata": {
+        "description": "TTL in seconds for Azure DNS A records."
+      }
     }
   },
   "variables": {
@@ -92,6 +135,7 @@
     "sshNatRuleName": "ssh-nat-rule",
     "vmName": "[concat(parameters('clusterName'), '-vm')]",
     "nicName": "[concat(parameters('clusterName'), '-nic')]",
+    "publicIpId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]",
     "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
     "lbFrontendId": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('lbName'), variables('lbFrontendName'))]",
     "lbBackendPoolId": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('lbName'), variables('lbBackendPoolName'))]",
@@ -121,6 +165,12 @@
           "domainNameLabel": "[parameters('dnsLabelPrefix')]"
         }
       }
+    },
+    {
+      "type": "Microsoft.Network/dnsZones",
+      "apiVersion": "2018-05-01",
+      "name": "[parameters('dnsZoneName')]",
+      "location": "global"
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
@@ -353,6 +403,74 @@
       }
     },
     {
+      "type": "Microsoft.Network/dnsZones/A",
+      "apiVersion": "2018-05-01",
+      "name": "[format('{0}/{1}', parameters('dnsZoneName'), parameters('lmsRecordName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/dnsZones', parameters('dnsZoneName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+      ],
+      "properties": {
+        "TTL": "[parameters('dnsRecordTtl')]",
+        "ARecords": [
+          {
+            "ipv4Address": "[reference(variables('publicIpId')).ipAddress]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/dnsZones/A",
+      "apiVersion": "2018-05-01",
+      "name": "[format('{0}/{1}', parameters('dnsZoneName'), parameters('cmsRecordName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/dnsZones', parameters('dnsZoneName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+      ],
+      "properties": {
+        "TTL": "[parameters('dnsRecordTtl')]",
+        "ARecords": [
+          {
+            "ipv4Address": "[reference(variables('publicIpId')).ipAddress]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/dnsZones/A",
+      "apiVersion": "2018-05-01",
+      "name": "[format('{0}/{1}', parameters('dnsZoneName'), parameters('mfeRecordName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/dnsZones', parameters('dnsZoneName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+      ],
+      "properties": {
+        "TTL": "[parameters('dnsRecordTtl')]",
+        "ARecords": [
+          {
+            "ipv4Address": "[reference(variables('publicIpId')).ipAddress]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/dnsZones/A",
+      "apiVersion": "2018-05-01",
+      "name": "[format('{0}/{1}', parameters('dnsZoneName'), parameters('minioRecordName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/dnsZones', parameters('dnsZoneName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+      ],
+      "properties": {
+        "TTL": "[parameters('dnsRecordTtl')]",
+        "ARecords": [
+          {
+            "ipv4Address": "[reference(variables('publicIpId')).ipAddress]"
+          }
+        ]
+      }
+    },
+    {
       "type": "Microsoft.Compute/virtualMachines",
       "apiVersion": "2023-09-01",
       "name": "[variables('vmName')]",
@@ -402,6 +520,26 @@
     "loadBalancerFqdn": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))).dnsSettings.fqdn]"
+    },
+    "dnsZoneName": {
+      "type": "string",
+      "value": "[parameters('dnsZoneName')]"
+    },
+    "lmsHost": {
+      "type": "string",
+      "value": "[format('{0}.{1}', parameters('lmsRecordName'), parameters('dnsZoneName'))]"
+    },
+    "cmsHost": {
+      "type": "string",
+      "value": "[format('{0}.{1}', parameters('cmsRecordName'), parameters('dnsZoneName'))]"
+    },
+    "mfeHost": {
+      "type": "string",
+      "value": "[format('{0}.{1}', parameters('mfeRecordName'), parameters('dnsZoneName'))]"
+    },
+    "minioHost": {
+      "type": "string",
+      "value": "[format('{0}.{1}', parameters('minioRecordName'), parameters('dnsZoneName'))]"
     },
     "vmName": {
       "type": "string",
