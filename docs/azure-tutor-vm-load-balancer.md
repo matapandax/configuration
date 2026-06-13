@@ -44,7 +44,6 @@ If the IP is `20.24.42.95`, use these hostnames:
 staging.20.24.42.95.sslip.io
 studio-staging.20.24.42.95.sslip.io
 apps.staging.20.24.42.95.sslip.io
-minio.staging.20.24.42.95.sslip.io
 ```
 
 Check that they resolve:
@@ -72,7 +71,7 @@ git clone --branch openedx-tutor https://github.com/matapandax/configuration.git
 cd configuration
 ```
 
-Prepare k3s, Tutor, Caddy, MFE, and MinIO:
+Prepare k3s, Tutor, Caddy, and MFE:
 
 ```bash
 PLATFORM_NAME="Open edX Staging" \
@@ -117,3 +116,5 @@ MFE is enabled by default:
 ENABLE_MFE=1
 MFE_HOST=apps.staging.<load-balancer-ip>.sslip.io
 ```
+
+MinIO is disabled by default on this single-VM k3s path to avoid public Load Balancer hairpin timeouts during LMS migrations.

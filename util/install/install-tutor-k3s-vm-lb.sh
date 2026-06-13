@@ -7,7 +7,7 @@ CONTACT_EMAIL="${CONTACT_EMAIL:?Set CONTACT_EMAIL for HTTPS certificate notices.
 PLATFORM_NAME="${PLATFORM_NAME:-Open edX}"
 MODE="${MODE:-prepare}"
 TUTOR_PACKAGE_SPEC="${TUTOR_PACKAGE_SPEC:-tutor[full]}"
-ENABLE_MINIO="${ENABLE_MINIO:-1}"
+ENABLE_MINIO="${ENABLE_MINIO:-0}"
 ENABLE_MFE="${ENABLE_MFE:-1}"
 MFE_HOST="${MFE_HOST:-apps.${LMS_HOST}}"
 TUTOR_VENV="${TUTOR_VENV:-/opt/tutor-venv}"
@@ -69,6 +69,9 @@ save_tutor_config() {
 
   if [ "${ENABLE_MINIO}" = "1" ]; then
     tutor plugins enable minio
+    tutor config save
+  else
+    tutor plugins disable minio || true
     tutor config save
   fi
 }
