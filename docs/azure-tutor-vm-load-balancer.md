@@ -42,7 +42,7 @@ The staging parameter file creates these records in `iceiedx.id`:
 ```text
 staging.iceiedx.id
 studio-staging.iceiedx.id
-apps-staging.iceiedx.id
+apps.staging.iceiedx.id
 minio.staging.iceiedx.id
 ```
 
@@ -73,7 +73,7 @@ Prepare k3s, Tutor, Caddy, MFE, and MinIO:
 PLATFORM_NAME="Open edX Staging" \
 LMS_HOST=staging.iceiedx.id \
 CMS_HOST=studio-staging.iceiedx.id \
-MFE_HOST=apps-staging.iceiedx.id \
+MFE_HOST=apps.staging.iceiedx.id \
 CONTACT_EMAIL=admin@iceiedx.id \
 MODE=prepare \
 ./util/install/install-tutor-k3s-vm-lb.sh
@@ -85,7 +85,7 @@ After DNS resolves, launch Open edX on k3s:
 PLATFORM_NAME="Open edX Staging" \
 LMS_HOST=staging.iceiedx.id \
 CMS_HOST=studio-staging.iceiedx.id \
-MFE_HOST=apps-staging.iceiedx.id \
+MFE_HOST=apps.staging.iceiedx.id \
 CONTACT_EMAIL=admin@iceiedx.id \
 MODE=launch \
 ./util/install/install-tutor-k3s-vm-lb.sh
@@ -109,5 +109,5 @@ MFE is enabled by default:
 
 ```bash
 ENABLE_MFE=1
-MFE_HOST=apps-staging.iceiedx.id
+MFE_HOST=apps.staging.iceiedx.id
 ```

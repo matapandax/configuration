@@ -39,7 +39,7 @@
       "value": "studio-staging"
     },
     "mfeRecordName": {
-      "value": "apps-staging"
+      "value": "apps.staging"
     },
     "minioRecordName": {
       "value": "minio.staging"
