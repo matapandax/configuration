@@ -95,13 +95,13 @@ az aks update \
 
 ## Version Notes
 
-The bootstrap script defaults to the current Tutor `v21` line:
+The bootstrap script defaults to the latest stable Tutor package from pip:
 
 ```bash
-TUTOR_PACKAGE_SPEC='tutor[full]>=21.0.0,<22.0.0'
+TUTOR_PACKAGE_SPEC='tutor[full]'
 ```
 
-For older Open edX releases, change `TUTOR_PACKAGE_SPEC` before running the script. For example, Koa uses Tutor `v11`:
+Override `TUTOR_PACKAGE_SPEC` only if you intentionally need an older Open edX release. For example, Koa uses Tutor `v11`:
 
 ```bash
 TUTOR_PACKAGE_SPEC='tutor[full]>=11.0.0,<12.0.0'
