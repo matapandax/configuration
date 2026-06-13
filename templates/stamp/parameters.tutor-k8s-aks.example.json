@@ -23,6 +23,15 @@
     "osDiskSizeGB": {
       "value": 128
     },
+    "vnetAddressPrefix": {
+      "value": "10.240.0.0/16"
+    },
+    "aksSubnetPrefix": {
+      "value": "10.240.0.0/22"
+    },
+    "appGatewaySubnetPrefix": {
+      "value": "10.240.4.0/24"
+    },
     "loadBalancerSku": {
       "value": "standard"
     },

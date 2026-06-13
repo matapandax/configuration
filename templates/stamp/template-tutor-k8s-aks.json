@@ -63,6 +63,27 @@
         "description": "OS disk size in GB for each AKS node."
       }
     },
+    "vnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.240.0.0/16",
+      "metadata": {
+        "description": "Address prefix for the Open edX AKS virtual network."
+      }
+    },
+    "aksSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.240.0.0/22",
+      "metadata": {
+        "description": "Subnet prefix for AKS nodes."
+      }
+    },
+    "appGatewaySubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.240.4.0/24",
+      "metadata": {
+        "description": "Reserved subnet prefix for a future Azure Application Gateway."
+      }
+    },
     "loadBalancerSku": {
       "type": "string",
       "defaultValue": "standard",
@@ -99,8 +120,16 @@
     "location": "[resourceGroup().location]",
     "aksName": "[concat(parameters('clusterName'), '-aks')]",
     "identityName": "[concat(parameters('clusterName'), '-aks-id')]",
+    "vnetName": "[concat(parameters('clusterName'), '-vnet')]",
+    "aksSubnetName": "aks-subnet",
+    "appGwSubnetName": "appgw-subnet",
+    "appGatewayName": "[concat(parameters('clusterName'), '-appgw')]",
+    "aksSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('aksSubnetName'))]",
     "workspaceName": "[concat(parameters('clusterName'), '-logs')]",
-    "acrName": "[toLower(concat(take(replace(parameters('clusterName'), '-', ''), 24), uniqueString(resourceGroup().id)))]"
+    "acrName": "[toLower(concat(take(replace(parameters('clusterName'), '-', ''), 24), uniqueString(resourceGroup().id)))]",
+    "networkContributorRoleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4d97b98b-1d4f-4787-a291-c67834d212e7')]",
+    "networkContributorRoleAssignmentName": "[guid(resourceGroup().id, variables('identityName'), variables('vnetName'), variables('aksSubnetName'), 'NetworkContributor')]",
+    "networkContributorRoleAssignmentId": "[extensionResourceId(variables('aksSubnetId'), 'Microsoft.Authorization/roleAssignments', variables('networkContributorRoleAssignmentName'))]"
   },
   "resources": [
     {
@@ -108,6 +137,48 @@
       "apiVersion": "2023-01-31",
       "name": "[variables('identityName')]",
       "location": "[variables('location')]"
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vnetName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('vnetAddressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('aksSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('aksSubnetPrefix')]"
+            }
+          },
+          {
+            "name": "[variables('appGwSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('appGatewaySubnetPrefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('networkContributorRoleAssignmentName')]",
+      "scope": "[variables('aksSubnetId')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ],
+      "properties": {
+        "roleDefinitionId": "[variables('networkContributorRoleDefinitionId')]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal"
+      }
     },
     {
       "type": "Microsoft.OperationalInsights/workspaces",
@@ -147,6 +218,8 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]",
+        "[variables('networkContributorRoleAssignmentId')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
         "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
       ],
       "properties": {
@@ -161,18 +234,19 @@
             "osType": "Linux",
             "mode": "System",
             "type": "VirtualMachineScaleSets",
+            "vnetSubnetID": "[variables('aksSubnetId')]",
             "enableAutoScaling": true,
             "minCount": "[parameters('minNodeCount')]",
             "maxCount": "[parameters('maxNodeCount')]"
           }
         ],
         "networkProfile": {
-          "networkPlugin": "kubenet",
+          "networkPlugin": "azure",
+          "networkPolicy": "azure",
           "loadBalancerSku": "[parameters('loadBalancerSku')]",
           "outboundType": "loadBalancer",
           "serviceCidr": "10.0.0.0/16",
-          "dnsServiceIP": "10.0.0.10",
-          "podCidr": "10.244.0.0/16"
+          "dnsServiceIP": "10.0.0.10"
         },
         "addonProfiles": {
           "omsagent": {
@@ -193,6 +267,22 @@
     "acrName": {
       "type": "string",
       "value": "[variables('acrName')]"
+    },
+    "vnetName": {
+      "type": "string",
+      "value": "[variables('vnetName')]"
+    },
+    "aksSubnetName": {
+      "type": "string",
+      "value": "[variables('aksSubnetName')]"
+    },
+    "appGatewaySubnetName": {
+      "type": "string",
+      "value": "[variables('appGwSubnetName')]"
+    },
+    "appGatewayName": {
+      "type": "string",
+      "value": "[variables('appGatewayName')]"
     },
     "getCredentialsCommand": {
       "type": "string",

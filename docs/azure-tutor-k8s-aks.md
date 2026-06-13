@@ -3,6 +3,7 @@
 This template creates the Azure foundation for a Tutor Kubernetes deployment:
 
 - Azure Kubernetes Service with autoscaling Linux nodes
+- Dedicated Azure Virtual Network with separate AKS and Application Gateway subnets
 - Azure Standard Load Balancer for the public Tutor `caddy` endpoint
 - Azure Container Registry for custom Tutor images
 - Log Analytics integration
@@ -10,6 +11,8 @@ This template creates the Azure foundation for a Tutor Kubernetes deployment:
 - Tutor MFE plugin enabled by default
 
 Tutor itself is applied after the AKS cluster exists. The public entry point is the Tutor `caddy` Kubernetes service with `type=LoadBalancer`; AKS provisions an Azure Standard Load Balancer and public IP for that service. DNS must point to this load balancer IP before HTTPS certificates can be issued.
+
+The template also reserves an `appgw-subnet` for a future Azure Application Gateway or AGIC setup. That subnet is created now so the network architecture is ready, but the default Tutor route still uses the Caddy LoadBalancer service.
 
 ## Deploy Azure Resources
 
