@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "value": "openedxaks"
+    },
+    "dnsPrefix": {
+      "value": "openedxaks-demo"
+    },
+    "nodeVmSize": {
+      "value": "Standard_D4s_v5"
+    },
+    "nodeCount": {
+      "value": 3
+    },
+    "minNodeCount": {
+      "value": 2
+    },
+    "maxNodeCount": {
+      "value": 6
+    },
+    "osDiskSizeGB": {
+      "value": 128
+    },
+    "acrSku": {
+      "value": "Standard"
+    },
+    "logRetentionDays": {
+      "value": 30
+    }
+  }
+}

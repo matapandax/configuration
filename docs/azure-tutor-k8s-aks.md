@@ -1,0 +1,96 @@
+# Open edX Tutor Kubernetes on Azure AKS
+
+This template creates the Azure foundation for a Tutor Kubernetes deployment:
+
+- Azure Kubernetes Service with autoscaling Linux nodes
+- Azure Container Registry for custom Tutor images
+- Log Analytics integration
+- AKS managed identity
+
+Tutor itself is applied after the AKS cluster exists, because DNS must point to the Kubernetes `caddy` load balancer before HTTPS certificates can be issued.
+
+## Deploy Azure Resources
+
+From the repository root:
+
+```bash
+az deployment group create \
+  --resource-group <resource-group> \
+  --template-file templates/stamp/template-tutor-k8s-aks.json \
+  --parameters @templates/stamp/parameters.tutor-k8s-aks.example.json
+```
+
+For Azure Portal, upload `templates/stamp/template-tutor-k8s-aks.json` as a custom template and use `templates/stamp/parameters.tutor-k8s-aks.example.json` as the parameter reference.
+
+## Prepare Tutor and DNS
+
+Run this from a machine that has Azure CLI login access:
+
+```bash
+RESOURCE_GROUP=<resource-group> \
+AKS_NAME=<cluster-name>-aks \
+LMS_HOST=learn.example.com \
+CMS_HOST=studio.example.com \
+CONTACT_EMAIL=admin@example.com \
+MODE=prepare \
+./util/install/install-tutor-k8s-aks.sh
+```
+
+The script starts only the Tutor `caddy` service first. Check the external IP:
+
+```bash
+kubectl --namespace openedx get services/caddy
+```
+
+Create DNS records:
+
+- `LMS_HOST` A record points to the Caddy external IP
+- `CMS_HOST` A record points to the same Caddy external IP
+- If MinIO is enabled, point `minio.<LMS_HOST>` to the same external IP
+
+## Launch Open edX
+
+After DNS resolves:
+
+```bash
+RESOURCE_GROUP=<resource-group> \
+AKS_NAME=<cluster-name>-aks \
+LMS_HOST=learn.example.com \
+CMS_HOST=studio.example.com \
+CONTACT_EMAIL=admin@example.com \
+MODE=launch \
+./util/install/install-tutor-k8s-aks.sh
+```
+
+Useful checks:
+
+```bash
+tutor k8s status
+kubectl --namespace openedx get pods
+kubectl --namespace openedx get services/caddy
+```
+
+If you build custom Tutor images and push them to the Azure Container Registry from this template, attach the registry to AKS:
+
+```bash
+az aks update \
+  --resource-group <resource-group> \
+  --name <cluster-name>-aks \
+  --attach-acr <acr-name>
+```
+
+## Version Notes
+
+The bootstrap script defaults to the current Tutor `v21` line:
+
+```bash
+TUTOR_PACKAGE_SPEC='tutor[full]>=21.0.0,<22.0.0'
+```
+
+For older Open edX releases, change `TUTOR_PACKAGE_SPEC` before running the script. For example, Koa uses Tutor `v11`:
+
+```bash
+TUTOR_PACKAGE_SPEC='tutor[full]>=11.0.0,<12.0.0'
+```
+
+Koa on modern AKS may need extra compatibility work, so use the current Tutor release unless the platform must stay on Koa.
