@@ -9,7 +9,9 @@ MODE="${MODE:-prepare}"
 TUTOR_PACKAGE_SPEC="${TUTOR_PACKAGE_SPEC:-tutor[full]}"
 ENABLE_MINIO="${ENABLE_MINIO:-0}"
 ENABLE_MFE="${ENABLE_MFE:-1}"
+ENABLE_ECOMMERCE="${ENABLE_ECOMMERCE:-0}"
 MFE_HOST="${MFE_HOST:-apps.${LMS_HOST}}"
+ECOMMERCE_HOST="${ECOMMERCE_HOST:-ecommerce.${LMS_HOST}}"
 TUTOR_VENV="${TUTOR_VENV:-/opt/tutor-venv}"
 K3S_CHANNEL="${K3S_CHANNEL:-stable}"
 
@@ -74,6 +76,12 @@ save_tutor_config() {
     tutor plugins disable minio || true
     tutor config save
   fi
+
+  if [ "${ENABLE_ECOMMERCE}" = "1" ]; then
+    tutor plugins install ecommerce
+    tutor plugins enable ecommerce
+    tutor config save --set "ECOMMERCE_HOST=${ECOMMERCE_HOST}"
+  fi
 }
 
 show_status() {
@@ -86,6 +94,9 @@ show_status() {
   tutor config printvalue LMS_HOST
   tutor config printvalue CMS_HOST
   tutor config printvalue MFE_HOST
+  if [ "${ENABLE_ECOMMERCE}" = "1" ]; then
+    tutor config printvalue ECOMMERCE_HOST
+  fi
   echo
   tutor k8s status || true
   echo

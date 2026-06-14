@@ -44,6 +44,7 @@ If the IP is `20.24.42.95`, use these hostnames:
 staging.20.24.42.95.sslip.io
 studio-staging.20.24.42.95.sslip.io
 apps.staging.20.24.42.95.sslip.io
+ecommerce.staging.20.24.42.95.sslip.io
 ```
 
 Check that they resolve:
@@ -52,6 +53,7 @@ Check that they resolve:
 nslookup staging.<load-balancer-ip>.sslip.io
 nslookup studio-staging.<load-balancer-ip>.sslip.io
 nslookup apps.staging.<load-balancer-ip>.sslip.io
+nslookup ecommerce.staging.<load-balancer-ip>.sslip.io
 ```
 
 ## SSH to the VM
@@ -118,3 +120,37 @@ MFE_HOST=apps.staging.<load-balancer-ip>.sslip.io
 ```
 
 MinIO is disabled by default on this single-VM k3s path to avoid public Load Balancer hairpin timeouts during LMS migrations.
+
+## Paid Courses and Ecommerce
+
+Ecommerce is disabled by default. Enable it only when the staging site needs paid courses, checkout, and order history.
+
+Run from the VM after the core LMS, Studio, and MFE pods are healthy:
+
+```bash
+PLATFORM_NAME="Open edX Staging" \
+LMS_HOST=staging.<load-balancer-ip>.sslip.io \
+CMS_HOST=studio-staging.<load-balancer-ip>.sslip.io \
+MFE_HOST=apps.staging.<load-balancer-ip>.sslip.io \
+ECOMMERCE_HOST=ecommerce.staging.<load-balancer-ip>.sslip.io \
+CONTACT_EMAIL=admin@example.com \
+ENABLE_ECOMMERCE=1 \
+MODE=launch \
+./util/install/install-tutor-k3s-vm-lb.sh
+```
+
+Check the ecommerce deployment:
+
+```bash
+kubectl --namespace openedx get pods | grep -i ecommerce
+kubectl --namespace openedx get svc | grep -i ecommerce
+tutor config printvalue ECOMMERCE_HOST
+```
+
+Expected hostname pattern:
+
+```text
+https://ecommerce.staging.<load-balancer-ip>.sslip.io
+```
+
+Paid courses still need course mode, pricing, currency, and payment processor setup inside Open edX/ecommerce. Enabling the service only creates the checkout/order service; it does not automatically make every course paid.
