@@ -125,6 +125,8 @@ MinIO is disabled by default on this single-VM k3s path to avoid public Load Bal
 
 Ecommerce is disabled by default. Enable it only when the staging site needs paid courses, checkout, and order history.
 
+The script installs the ecommerce plugin from the Python package `tutor-ecommerce`, then enables the Tutor plugin named `ecommerce`.
+
 Run from the VM after the core LMS, Studio, and MFE pods are healthy:
 
 ```bash
@@ -137,6 +139,12 @@ CONTACT_EMAIL=admin@example.com \
 ENABLE_ECOMMERCE=1 \
 MODE=launch \
 ./util/install/install-tutor-k3s-vm-lb.sh
+```
+
+To pin the ecommerce plugin version, add:
+
+```bash
+TUTOR_ECOMMERCE_PACKAGE_SPEC='tutor-ecommerce==19.0.0'
 ```
 
 Check the ecommerce deployment:

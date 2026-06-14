@@ -7,6 +7,7 @@ CONTACT_EMAIL="${CONTACT_EMAIL:?Set CONTACT_EMAIL for HTTPS certificate notices.
 PLATFORM_NAME="${PLATFORM_NAME:-Open edX}"
 MODE="${MODE:-prepare}"
 TUTOR_PACKAGE_SPEC="${TUTOR_PACKAGE_SPEC:-tutor[full]}"
+TUTOR_ECOMMERCE_PACKAGE_SPEC="${TUTOR_ECOMMERCE_PACKAGE_SPEC:-tutor-ecommerce}"
 ENABLE_MINIO="${ENABLE_MINIO:-0}"
 ENABLE_MFE="${ENABLE_MFE:-1}"
 ENABLE_ECOMMERCE="${ENABLE_ECOMMERCE:-0}"
@@ -78,7 +79,7 @@ save_tutor_config() {
   fi
 
   if [ "${ENABLE_ECOMMERCE}" = "1" ]; then
-    tutor plugins install ecommerce
+    sudo "${TUTOR_VENV}/bin/pip" install --upgrade "${TUTOR_ECOMMERCE_PACKAGE_SPEC}"
     tutor plugins enable ecommerce
     tutor config save --set "ECOMMERCE_HOST=${ECOMMERCE_HOST}"
   fi
