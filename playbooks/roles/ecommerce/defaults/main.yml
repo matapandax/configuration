@@ -135,6 +135,11 @@ ECOMMERCE_PAYPAL_RECEIPT_URL: '/checkout/receipt/'
 ECOMMERCE_PAYPAL_CANCEL_URL: '/checkout/cancel-checkout/'
 ECOMMERCE_PAYPAL_ERROR_URL: '/checkout/error/'
 
+# Stripe
+ECOMMERCE_STRIPE_SECRET_KEY: 'sk_test_SET-ME-PLEASE'
+ECOMMERCE_STRIPE_PUBLISHABLE_KEY: 'pk_test_SET-ME-PLEASE'
+ECOMMERCE_STRIPE_WEBHOOK_ENDPOINT_SECRET: 'whsec_SET-ME-PLEASE'
+
 ECOMMERCE_PAYMENT_PROCESSOR_CONFIG:
   edx:
     cybersource:
@@ -165,6 +170,10 @@ ECOMMERCE_PAYMENT_PROCESSOR_CONFIG:
       receipt_url: '{{ ECOMMERCE_PAYPAL_RECEIPT_URL }}'
       cancel_checkout_path: '{{ ECOMMERCE_PAYPAL_CANCEL_URL }}'
       error_url: '{{ ECOMMERCE_PAYPAL_ERROR_URL }}'
+    stripe:
+      secret_key: '{{ ECOMMERCE_STRIPE_SECRET_KEY }}'
+      publishable_key: '{{ ECOMMERCE_STRIPE_PUBLISHABLE_KEY }}'
+      webhook_endpoint_secret: '{{ ECOMMERCE_STRIPE_WEBHOOK_ENDPOINT_SECRET }}'
 
 # JWT payload user attribute mapping
 ECOMMERCE_EDX_DRF_EXTENSIONS:
