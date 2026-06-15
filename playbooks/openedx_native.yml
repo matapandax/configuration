@@ -32,20 +32,6 @@
     EDXAPP_ACCOUNT_MICROFRONTEND_URL: "{{ EDXAPP_LMS_BASE_SCHEME }}://{{ MFE_BASE }}/account"
     EDXAPP_LMS_NGINX_PORT: '80'
     EDX_PLATFORM_VERSION: 'master'
-    EDXAPP_LMS_AUTHENTICATION_BACKENDS:
-      - social_core.backends.google.GoogleOAuth2
-      - social_core.backends.linkedin.LinkedinOAuth2
-      - social_core.backends.facebook.FacebookOAuth2
-      - social_core.backends.azuread.AzureADOAuth2
-      - common.djangoapps.third_party_auth.appleid.AppleIdAuth
-      - common.djangoapps.third_party_auth.identityserver3.IdentityServer3
-      - common.djangoapps.third_party_auth.saml.SAMLAuthBackend
-      - common.djangoapps.third_party_auth.lti.LTIAuthBackend
-      - rules.permissions.ObjectPermissionBackend
-      - django.contrib.auth.backends.AllowAllUsersModelBackend
-      - bridgekeeper.backends.RulePermissionBackend
-    EDXAPP_LMS_ENV_EXTRA: "{{ EDXAPP_ENV_EXTRA | combine({'AUTHENTICATION_BACKENDS': EDXAPP_LMS_AUTHENTICATION_BACKENDS}) }}"
-    EDXAPP_CMS_ENV_EXTRA: "{{ EDXAPP_ENV_EXTRA | combine({'ADDL_INSTALLED_APPS': []}) }}"
     EDXAPP_ORDER_HISTORY_MICROFRONTEND_URL: "{{ EDXAPP_LMS_BASE_SCHEME }}://{{ MFE_BASE }}/ecommerce/orders"
     EDXAPP_SITE_CONFIGURATION:
       - values:
