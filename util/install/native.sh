@@ -160,25 +160,18 @@ git pull
 cd /var/tmp/configuration
 sudo -H pip3 install -r requirements.txt
 ANSIBLE_PLAYBOOK_BIN=$(command -v ansible-playbook || true)
-for candidate in /usr/local/bin/ansible-playbook /usr/bin/ansible-playbook /root/.local/bin/ansible-playbook; do
-    if [[ -z "$ANSIBLE_PLAYBOOK_BIN" && -x "$candidate" ]]; then
-        ANSIBLE_PLAYBOOK_BIN="$candidate"
-    fi
-done
+if [[ -z "$ANSIBLE_PLAYBOOK_BIN" && -x /usr/local/bin/ansible-playbook ]]; then
+    ANSIBLE_PLAYBOOK_BIN=/usr/local/bin/ansible-playbook
+fi
 if [[ -z "$ANSIBLE_PLAYBOOK_BIN" ]]; then
-    python3 -c 'import ansible.cli.playbook' || {
-        echo "Could not find ansible-playbook after installing requirements"
-        exit 1
-    }
-    ANSIBLE_PLAYBOOK_CMD=(sudo -E python3 -m ansible.cli.playbook)
-else
-    ANSIBLE_PLAYBOOK_CMD=(sudo -E "$ANSIBLE_PLAYBOOK_BIN")
+    echo "Could not find ansible-playbook after installing requirements"
+    exit 1
 fi
 
 ##
 ## Run the openedx_native.yml playbook in the configuration/playbooks directory
 ##
-cd /var/tmp/configuration/playbooks && "${ANSIBLE_PLAYBOOK_CMD[@]}" -c local ./openedx_native.yml -i "localhost," $EXTRA_VARS "$@"
+cd /var/tmp/configuration/playbooks && sudo -E "$ANSIBLE_PLAYBOOK_BIN" -c local ./openedx_native.yml -i "localhost," $EXTRA_VARS "$@"
 ansible_status=$?
 
 if [[ $ansible_status -ne 0 ]]; then
