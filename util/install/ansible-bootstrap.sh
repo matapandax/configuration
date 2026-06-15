@@ -32,9 +32,9 @@ fi
 #
 # Bootstrapping constants
 #
-VIRTUAL_ENV_VERSION="16.7.10"
-PIP_VERSION="21.2.1"
-SETUPTOOLS_VERSION="44.1.0"
+VIRTUAL_ENV_VERSION="20.2.0"
+PIP_VERSION="23.1.2"
+SETUPTOOLS_VERSION="67.8.0"
 VIRTUAL_ENV="/tmp/bootstrap"
 PYTHON_BIN="${VIRTUAL_ENV}/bin"
 ANSIBLE_DIR="/tmp/ansible"
@@ -122,9 +122,9 @@ if [[ "${SHORT_DIST}" != bionic ]] && [[ "${SHORT_DIST}" != focal ]] ;then
   add-apt-repository -y "${EDX_PPA}"
 fi
 
-# Add deadsnakes repository for python3.5 usage in
-# Ubuntu versions different than xenial.
-if [[ "${SHORT_DIST}" != xenial ]] ;then
+# Add deadsnakes repository for python3.5 usage on Bionic.
+# Focal uses its default Python 3.8 packages.
+if [[ "${SHORT_DIST}" == bionic ]] ;then
   add-apt-repository -y ppa:deadsnakes/ppa
 fi
 
