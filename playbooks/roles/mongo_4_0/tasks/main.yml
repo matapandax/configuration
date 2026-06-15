@@ -31,6 +31,15 @@
     - "install"
     - "install:app-requirements"
 
+- name: remove stale apt sources that break cache updates
+  shell: rm -f /etc/apt/sources.list.d/*mongodb*.list /etc/apt/sources.list.d/*nodesource*.list
+  args:
+    warn: false
+  tags:
+    - "install"
+    - "install:app-requirements"
+    - "mongo_packages"
+
 # add Bionic source list to install libssl1.0.0 on Focal
 # so mongo4.0 installation does not fail with dependencies
 - name: add source list to install libssl1.0.0
