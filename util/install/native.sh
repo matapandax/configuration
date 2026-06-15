@@ -101,9 +101,9 @@ sudo apt-get upgrade -y
 sudo apt-get install -y build-essential software-properties-common curl git-core libxml2-dev libxslt1-dev python3-pip libmysqlclient-dev python3-apt python3-dev python3-testresources libxmlsec1-dev libfreetype6-dev swig gcc g++
 # ansible-bootstrap installs yaml that pip 19 can't uninstall.
 sudo apt-get remove -y python-yaml
-sudo pip3 install --upgrade pip==23.1.2
-sudo pip3 install --upgrade setuptools==67.8.0
-sudo -H pip3 install --upgrade virtualenv==20.2.0
+sudo -H python3 -m pip install --upgrade pip==23.1.2
+sudo -H python3 -m pip install --upgrade setuptools==67.8.0
+sudo -H python3 -m pip install --upgrade virtualenv==20.2.0
 
 ##
 ## Overridable version variables in the playbooks. Each can be overridden
@@ -158,15 +158,16 @@ git pull
 ## Install the ansible requirements
 ##
 cd /var/tmp/configuration
-sudo -H pip3 install -r requirements.txt
+sudo -H python3 -m pip install -r requirements.txt
 ANSIBLE_PLAYBOOK_BIN=$(command -v ansible-playbook || true)
-for candidate in /usr/local/bin/ansible-playbook /usr/bin/ansible-playbook /root/.local/bin/ansible-playbook; do
+PYTHON_SCRIPT_DIR=$(python3 -c 'import sysconfig; print(sysconfig.get_path("scripts"))')
+for candidate in /usr/local/bin/ansible-playbook /usr/bin/ansible-playbook /root/.local/bin/ansible-playbook "$PYTHON_SCRIPT_DIR/ansible-playbook"; do
     if [[ -z "$ANSIBLE_PLAYBOOK_BIN" && -x "$candidate" ]]; then
         ANSIBLE_PLAYBOOK_BIN="$candidate"
     fi
 done
 if [[ -z "$ANSIBLE_PLAYBOOK_BIN" ]]; then
-    python3 -c 'import ansible.cli.playbook' || {
+    sudo -H python3 -c 'import ansible.cli.playbook' || {
         echo "Could not find ansible-playbook after installing requirements"
         exit 1
     }
