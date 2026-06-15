@@ -132,9 +132,9 @@ edx_django_service_memcache: [ 'memcache' ]
 
 edx_django_service_caches:
   default:
-    BACKEND: 'django.core.cache.backends.memcached.PyMemcacheCache'
+    BACKEND: 'django.core.cache.backends.locmem.LocMemCache'
     KEY_PREFIX: '{{ edx_django_service_name }}'
-    LOCATION: '{{ edx_django_service_memcache }}'
+    LOCATION: '{{ edx_django_service_name }}'
 
 edx_django_service_default_db_host: 'localhost'
 edx_django_service_default_db_name: '{{ edx_django_service_name }}'
