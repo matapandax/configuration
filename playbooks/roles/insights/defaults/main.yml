@@ -131,7 +131,7 @@ INSIGHTS_CONFIG:
   APPLICATION_NAME: '{{ INSIGHTS_APPLICATION_NAME }}'
   CACHES:
     default: &default_generic_cache
-      BACKEND:  'django.core.cache.backends.memcached.MemcachedCache'
+      BACKEND:  'django.core.cache.backends.memcached.PyMemcacheCache'
       KEY_PREFIX: '{{ COMMON_ENVIRONMENT }}-{{ COMMON_DEPLOYMENT }}-insights'
       LOCATION: "{{ INSIGHTS_MEMCACHE }}"
   TIME_ZONE: '{{ INSIGHTS_TIME_ZONE }}'
