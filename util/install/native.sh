@@ -98,7 +98,7 @@ sudo apt-get upgrade -y
 ##
 ## Install system pre-requisites
 ##
-sudo apt-get install -y build-essential software-properties-common curl git-core libxml2-dev libxslt1-dev python3-pip libmysqlclient-dev python3-apt python3-dev python3-testresources libxmlsec1-dev libfreetype6-dev swig gcc g++
+sudo apt-get install -y build-essential software-properties-common curl git-core libxml2-dev libxslt1-dev python3-pip libmysqlclient-dev python3-apt python3-dev libxmlsec1-dev libfreetype6-dev swig gcc g++
 # ansible-bootstrap installs yaml that pip 19 can't uninstall.
 sudo apt-get remove -y python-yaml
 sudo pip3 install --upgrade pip==23.1.2
@@ -159,19 +159,11 @@ git pull
 ##
 cd /var/tmp/configuration
 sudo -H pip3 install -r requirements.txt
-ANSIBLE_PLAYBOOK_BIN=$(command -v ansible-playbook || true)
-if [[ -z "$ANSIBLE_PLAYBOOK_BIN" && -x /usr/local/bin/ansible-playbook ]]; then
-    ANSIBLE_PLAYBOOK_BIN=/usr/local/bin/ansible-playbook
-fi
-if [[ -z "$ANSIBLE_PLAYBOOK_BIN" ]]; then
-    echo "Could not find ansible-playbook after installing requirements"
-    exit 1
-fi
 
 ##
 ## Run the openedx_native.yml playbook in the configuration/playbooks directory
 ##
-cd /var/tmp/configuration/playbooks && sudo -E "$ANSIBLE_PLAYBOOK_BIN" -c local ./openedx_native.yml -i "localhost," $EXTRA_VARS "$@"
+cd /var/tmp/configuration/playbooks && sudo -E ansible-playbook -c local ./openedx_native.yml -i "localhost," $EXTRA_VARS "$@"
 ansible_status=$?
 
 if [[ $ansible_status -ne 0 ]]; then
