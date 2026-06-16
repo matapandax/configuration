@@ -153,6 +153,7 @@ EXTRA_VARS="-e@$(pwd)/config.yml $EXTRA_VARS"
 
 CONFIGURATION_VERSION=${CONFIGURATION_VERSION-$OPENEDX_RELEASE}
 CONFIGURATION_REPO=${CONFIGURATION_REPO:-https://github.com/openedx/configuration}
+EXTRA_VARS="-e edx_ansible_source_repo=$CONFIGURATION_REPO $EXTRA_VARS"
 
 ##
 ## Clone the configuration repository and run Ansible
