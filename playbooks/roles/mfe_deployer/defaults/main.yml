@@ -14,6 +14,9 @@ MFES:
   - name: gradebook
     repo: frontend-app-gradebook
     public_path: "/gradebook/"
+  - name: learning
+    repo: frontend-app-learning
+    public_path: "/learning/"
   - name: account
     repo: frontend-app-account
     public_path: "/account/"

@@ -31,6 +31,7 @@
     EDXAPP_CROSS_DOMAIN_CSRF_COOKIE_NAME: 'native-csrf-cookie'
     COMMON_LMS_BASE_URL: "{{ EDXAPP_LMS_BASE_SCHEME }}://{{ EDXAPP_LMS_BASE }}"
     EDXAPP_ACCOUNT_MICROFRONTEND_URL: "{{ MFE_ROOT_URL }}/account"
+    EDXAPP_LEARNING_MICROFRONTEND_URL: "{{ MFE_ROOT_URL }}/learning"
     EDXAPP_LMS_NGINX_PORT: '80'
     EDX_PLATFORM_VERSION: 'master'
     DISCOVERY_VERSION: 'open-release/quince.master'
@@ -38,6 +39,7 @@
     EDXAPP_ORDER_HISTORY_MICROFRONTEND_URL: "{{ MFE_ROOT_URL }}/ecommerce/orders"
     EDXAPP_SITE_CONFIGURATION:
       - values:
+          ENABLE_COURSEWARE_MICROFRONTEND: true
           ENABLE_ORDER_HISTORY_MICROFRONTEND: "{{ SANDBOX_ENABLE_ECOMMERCE }}"
 
     # Set to false if deployed behind another proxy/load balancer.
