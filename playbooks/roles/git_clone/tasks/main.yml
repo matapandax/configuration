@@ -81,6 +81,22 @@
   when: item.stdout|length > 0
   with_items: "{{ dirty_files.results }}"
 
+- name: Fetch requested git ref for existing shallow checkouts
+  shell: >
+    test ! -d "{{ item.DESTINATION }}/.git" ||
+    git -C "{{ item.DESTINATION }}" fetch --force --depth 1 origin
+    "+refs/heads/{{ item.VERSION }}:refs/remotes/origin/{{ item.VERSION }}" ||
+    git -C "{{ item.DESTINATION }}" fetch --force --depth 1 origin
+    "+refs/tags/{{ item.VERSION }}:refs/tags/{{ item.VERSION }}" ||
+    git -C "{{ item.DESTINATION }}" fetch --force --depth 1 origin
+    "{{ item.VERSION }}"
+  become_user: "{{ repo_owner }}"
+  with_items: "{{ GIT_REPOS }}"
+  no_log: "{{ GIT_CLONE_NO_LOGGING }}"
+  tags:
+    - install
+    - install:code
+
 - name: Checkout code over ssh
   git:
     repo: "git@{{ item.DOMAIN }}:{{ item.PATH }}/{{ item.REPO }}"
