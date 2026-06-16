@@ -109,6 +109,15 @@ sudo -H pip3 install --upgrade virtualenv==20.2.0
 ## Overridable version variables in the playbooks. Each can be overridden
 ## individually, or with $OPENEDX_RELEASE.
 ##
+
+# course-discovery exposes Quince point releases as tags, while the native
+# installer's git checkout flow expects the version to be available locally as a
+# branch/ref. Use the Quince release branch by default; it currently points at
+# the same commit as open-release/quince.3.
+if [[ -z "${DISCOVERY_VERSION:-}" && "$OPENEDX_RELEASE" == open-release/quince.* ]]; then
+    DISCOVERY_VERSION="open-release/quince.master"
+fi
+
 VERSION_VARS=(
     EDX_PLATFORM_VERSION
     FORUM_VERSION
