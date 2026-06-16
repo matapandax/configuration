@@ -34,6 +34,7 @@
     EDXAPP_LMS_NGINX_PORT: '80'
     EDX_PLATFORM_VERSION: 'master'
     DISCOVERY_VERSION: 'open-release/quince.master'
+    DISCOVERY_GIT_PATH: 'openedx'
     EDXAPP_ORDER_HISTORY_MICROFRONTEND_URL: "{{ MFE_ROOT_URL }}/ecommerce/orders"
     EDXAPP_SITE_CONFIGURATION:
       - values:

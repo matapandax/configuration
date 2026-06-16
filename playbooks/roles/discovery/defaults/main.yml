@@ -139,7 +139,7 @@ DISCOVERY_CELERY_BROKER_URL: "redis://:@127.0.0.1:6379/"
 DISCOVERY_REPOS:
   - PROTOCOL: "{{ COMMON_GIT_PROTOCOL }}"
     DOMAIN: "{{ COMMON_GIT_MIRROR }}"
-    PATH: "{{ COMMON_GIT_PATH }}"
+    PATH: "{{ DISCOVERY_GIT_PATH | default(COMMON_GIT_PATH) }}"
     REPO: 'course-discovery.git'
     VERSION: "{{ DISCOVERY_VERSION }}"
     DESTINATION: "{{ discovery_code_dir }}"

@@ -81,6 +81,32 @@
   when: item.stdout|length > 0
   with_items: "{{ dirty_files.results }}"
 
+- name: Set expected git remote for existing https checkouts
+  shell: >
+    test ! -d "{{ item.DESTINATION }}/.git" ||
+    git -C "{{ item.DESTINATION }}" remote set-url origin
+    "https://{{ item.DOMAIN }}/{{ item.PATH }}/{{ item.REPO }}"
+  become_user: "{{ repo_owner }}"
+  when: item.PROTOCOL == "https" and GIT_REPOS is defined
+  with_items: "{{ GIT_REPOS }}"
+  no_log: "{{ GIT_CLONE_NO_LOGGING }}"
+  tags:
+    - install
+    - install:code
+
+- name: Set expected git remote for existing ssh checkouts
+  shell: >
+    test ! -d "{{ item.DESTINATION }}/.git" ||
+    git -C "{{ item.DESTINATION }}" remote set-url origin
+    "git@{{ item.DOMAIN }}:{{ item.PATH }}/{{ item.REPO }}"
+  become_user: "{{ repo_owner }}"
+  when: item.PROTOCOL == "ssh" and GIT_REPOS is defined
+  with_items: "{{ GIT_REPOS }}"
+  no_log: "{{ GIT_CLONE_NO_LOGGING }}"
+  tags:
+    - install
+    - install:code
+
 - name: Fetch requested git ref for existing shallow checkouts
   shell: >
     test ! -d "{{ item.DESTINATION }}/.git" ||
