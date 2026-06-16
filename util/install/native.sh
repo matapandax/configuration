@@ -118,6 +118,10 @@ if [[ "$OPENEDX_RELEASE" == open-release/quince.* ]] && [[ -z "${DISCOVERY_VERSI
     DISCOVERY_VERSION="open-release/quince.master"
 fi
 
+if [[ "$OPENEDX_RELEASE" == open-release/quince.* ]] && [[ -z "${MFE_DEPLOY_VERSION:-}" || "$MFE_DEPLOY_VERSION" == "$OPENEDX_RELEASE" ]]; then
+    MFE_DEPLOY_VERSION="open-release/quince.master"
+fi
+
 VERSION_VARS=(
     EDX_PLATFORM_VERSION
     FORUM_VERSION
