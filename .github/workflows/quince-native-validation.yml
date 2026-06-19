@@ -1,0 +1,37 @@
+name: Quince Native Validation
+
+on:
+  push:
+    branches:
+      - install-openedx-quince-native
+  pull_request:
+    branches:
+      - install-openedx-quince-native
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check shell scripts
+        run: |
+          bash -n util/install/native.sh
+          bash -n util/install/ansible-bootstrap.sh
+
+      - name: Check YAML files touched by native install
+        run: |
+          ruby -e 'require "yaml"; %w[
+            playbooks/openedx_native.yml
+            playbooks/roles/common_vars/defaults/main.yml
+            playbooks/roles/discovery/defaults/main.yml
+            playbooks/roles/edx_ansible/tasks/deploy.yml
+            playbooks/roles/git_clone/tasks/main.yml
+            playbooks/roles/mfe_deployer/defaults/main.yml
+          ].each { |f| YAML.load_file(f) }; puts "YAML OK"'
+
+      - name: Check whitespace
+        run: git diff --check
