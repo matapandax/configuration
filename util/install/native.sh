@@ -178,7 +178,7 @@ git pull
 ## Install the ansible requirements
 ##
 cd /var/tmp/configuration
-sudo -H pip3 install -r requirements.txt
+sudo -H pip3 install --ignore-installed -r requirements.txt
 
 ##
 ## Run the openedx_native.yml playbook in the configuration/playbooks directory
