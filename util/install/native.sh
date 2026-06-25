@@ -179,6 +179,7 @@ git pull
 ##
 cd /var/tmp/configuration
 sudo -H pip3 install --ignore-installed -r requirements.txt
+sudo -H pip3 install --ignore-installed pyOpenSSL==23.2.0
 
 ##
 ## Run the openedx_native.yml playbook in the configuration/playbooks directory
