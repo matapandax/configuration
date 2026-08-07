@@ -27,6 +27,12 @@ playbooks/travis-test.yml
 
 ## Local virtualenv
 /venv
+/.venv-koa
+
+## Native installer state and secrets
+/logs/
+/my-passwords.yml
+/config.yml
 
 ## Ansible Artifacts
 *.retry

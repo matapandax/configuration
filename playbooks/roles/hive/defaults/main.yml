@@ -61,7 +61,7 @@ hive_dist:
   untarred_filename: "apache-hive-{{ HIVE_VERSION }}-bin"
 hive_mysql_connector_dist:
   filename: "mysql-connector-java-{{ HIVE_MYSQL_CONNECTOR_VERSION }}.tar.gz"
-  url: "http://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-{{ HIVE_MYSQL_CONNECTOR_VERSION }}.tar.gz"
+  url: "https://cdn.mysql.com/archives/mysql-connector-java-5.1/mysql-connector-java-{{ HIVE_MYSQL_CONNECTOR_VERSION }}.tar.gz"
   sha256sum: 04ad83b655066b626daaabb9676a00f6b4bc43f0c234cbafafac1209dcf1be73
   untarred_filename: "mysql-connector-java-{{ HIVE_MYSQL_CONNECTOR_VERSION }}"
   jarfilename: "mysql-connector-java-{{ HIVE_MYSQL_CONNECTOR_VERSION }}-bin.jar"

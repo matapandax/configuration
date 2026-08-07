@@ -1,0 +1,11 @@
+[Unit]
+Description=Open edX Koa daily analytics pipeline
+After=mysql.service hdfs-namenode.service yarn-resourcemanager.service
+
+[Service]
+Type=oneshot
+User=hadoop
+Group=hadoop
+ExecStart=/edx/bin/run-analytics-daily
+StandardOutput=journal
+StandardError=journal

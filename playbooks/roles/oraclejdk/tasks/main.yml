@@ -35,6 +35,14 @@
     dest: "/usr/lib/jvm"
     copy: no
 
+- name: Use the current system CA trust store on Ubuntu
+  copy:
+    src: /etc/ssl/certs/java/cacerts
+    dest: "/usr/lib/jvm/{{ oraclejdk_base }}/jre/lib/security/cacerts"
+    remote_src: yes
+    mode: "0644"
+  when: ansible_distribution == "Ubuntu"
+
 - name: Create symlink expected by elasticsearch
   file:
     src: "/usr/lib/jvm/{{ oraclejdk_base }}"

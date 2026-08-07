@@ -12,6 +12,11 @@
 ## Sanity checks
 ##
 
+set -o pipefail
+
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+cd "$REPO_ROOT"
+
 if [[ ! $OPENEDX_RELEASE ]]; then
     echo "You must define OPENEDX_RELEASE"
     exit
@@ -156,32 +161,17 @@ fi
 EXTRA_VARS="-e@$(pwd)/config.yml $EXTRA_VARS"
 
 CONFIGURATION_VERSION=${CONFIGURATION_VERSION-$OPENEDX_RELEASE}
-CONFIGURATION_REPO=${CONFIGURATION_REPO-https://github.com/edx/configuration}
-
-##
-## Clone the configuration repository and run Ansible
-##
-cd /var/tmp
-if [[ ! -d configuration/.git ]]; then
-    git clone $CONFIGURATION_REPO configuration
-fi
-git config --global --add safe.directory /var/tmp/configuration
-cd configuration
-git remote set-url origin $CONFIGURATION_REPO
-git fetch origin
-git checkout $CONFIGURATION_VERSION
-git pull --ff-only origin $CONFIGURATION_VERSION
 
 ##
 ## Install the ansible requirements
 ##
-cd /var/tmp/configuration
+cd "$REPO_ROOT"
 sudo -H pip3 install -r requirements.txt
 
 ##
 ## Run the openedx_native.yml playbook in the configuration/playbooks directory
 ##
-cd /var/tmp/configuration/playbooks && sudo -E ansible-playbook -c local ./openedx_native.yml -i "localhost," $EXTRA_VARS "$@"
+cd "$REPO_ROOT/playbooks" && sudo -E ansible-playbook -c local ./openedx_native.yml -i "localhost," $EXTRA_VARS "$@"
 ansible_status=$?
 
 if [[ $ansible_status -ne 0 ]]; then
@@ -192,7 +182,7 @@ if [[ $ansible_status -ne 0 ]]; then
     echo " "
     echo "Decoded error:"
     # Find the last "failed" or "fatal" line and decode it.
-    awk '/^(failed|fatal):/{bad=$0} END {if (bad) print bad}' $log_file | python3 /var/tmp/configuration/util/ansible_msg.py
+    awk '/^(failed|fatal):/{bad=$0} END {if (bad) print bad}' $log_file | python3 "$REPO_ROOT/util/ansible_msg.py"
     echo " "
     echo "============================================================"
     echo "Installation failed!"
@@ -204,4 +194,5 @@ if [[ $ansible_status -ne 0 ]]; then
     echo "    Your environment:"
     env | egrep -i 'version|release' | sed -e 's/^/        /'
     echo "============================================================"
+    exit "$ansible_status"
 fi

@@ -1,0 +1,15 @@
+EDXAPP_LMS_BASE: "lms.example.com"
+EDXAPP_CMS_BASE: "studio.example.com:18010"
+EDXAPP_ANALYTICS_DASHBOARD_URL: "http://insights.example.com:18110"
+EDXAPP_ENABLE_OAUTH2_PROVIDER: true
+
+INSIGHTS_LMS_BASE: "http://lms.example.com"
+INSIGHTS_CMS_BASE: "http://studio.example.com:18010"
+INSIGHTS_BASE_URL: "http://insights.example.com:18110"
+INSIGHTS_DOMAIN: "insights.example.com"
+INSIGHTS_CMS_COURSE_SHORTCUT_BASE_URL: "http://studio.example.com:18010/course"
+INSIGHTS_LMS_COURSE_SHORTCUT_BASE_URL: "http://lms.example.com/courses"
+
+ANALYTICS_API_ENDPOINT: "http://127.0.0.1:8100/api/v0"
+ANALYTICS_API_BASE_URL: "http://127.0.0.1:8100"
+ANALYTICS_API_LMS_BASE_URL: "http://127.0.0.1:8000/"
