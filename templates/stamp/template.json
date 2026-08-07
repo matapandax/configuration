@@ -79,12 +79,12 @@
       "type": "string",
       "defaultValue": "https://github.com/matapandax/configuration.git",
       "metadata": {
-        "description": "Repository cloned first to run util/install/native.sh."
+        "description": "Public repository containing install-koa.sh."
       }
     },
     "installerGithubBranch": {
       "type": "string",
-      "defaultValue": "open-release/koa.master",
+      "defaultValue": "koa-portable-installer",
       "metadata": {
         "description": "Branch used from installerGithubRepo."
       }
@@ -100,14 +100,14 @@
       "type": "string",
       "defaultValue": "open-release/koa.master",
       "metadata": {
-        "description": "Configuration branch passed to CONFIGURATION_VERSION."
+        "description": "Legacy compatibility parameter; the portable branch uses its local playbooks."
       }
     },
     "configurationGithubRepo": {
       "type": "string",
       "defaultValue": "https://github.com/matapandax/configuration.git",
       "metadata": {
-        "description": "Repository cloned by native.sh for the Ansible configuration checkout."
+        "description": "Legacy compatibility parameter; native.sh now uses the cloned local checkout."
       }
     },
     "allowedSshSource": {
@@ -261,6 +261,19 @@
             }
           },
           {
+            "name": "Insights",
+            "properties": {
+              "priority": 1075,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "18110"
+            }
+          },
+          {
             "name": "EdxRelease",
             "properties": {
               "priority": 1080,
@@ -409,7 +422,7 @@
         "autoUpgradeMinorVersion": true,
         "settings": {},
         "protectedSettings": {
-          "commandToExecute": "[concat('bash -lc ''set -euxo pipefail; export DEBIAN_FRONTEND=noninteractive; LOG=/var/log/openedx-azure-install.log; exec > >(tee -a $LOG) 2>&1; apt-get update -y; apt-get install -y git curl ca-certificates software-properties-common python3-pip; mkdir -p /home/', parameters('adminUsername'), '/openedx-install; chown -R ', parameters('adminUsername'), ':', parameters('adminUsername'), ' /home/', parameters('adminUsername'), '/openedx-install; if [ ! -d /home/', parameters('adminUsername'), '/openedx-install/.git ]; then git clone ', parameters('installerGithubRepo'), ' /home/', parameters('adminUsername'), '/openedx-install; fi; git config --global --add safe.directory /home/', parameters('adminUsername'), '/openedx-install; cd /home/', parameters('adminUsername'), '/openedx-install; git fetch --all --tags; git checkout ', parameters('installerGithubBranch'), '; git pull --ff-only || true; cat > config.yml <<\"EOF\"\nEDXAPP_LMS_BASE: \"', variables('resolvedLmsHost'), '\"\nEDXAPP_CMS_BASE: \"', variables('resolvedCmsHost'), '\"\nEDXAPP_LMS_BASE_SCHEME: http\nCOMMON_LMS_BASE_URL: \"http://', variables('resolvedLmsHost'), '\"\nCOMMON_CONFIG_NO_LOGGING: false\nEOF\nexport OPENEDX_RELEASE=\"', parameters('openedxRelease'), '\"; export CONFIGURATION_VERSION=\"', parameters('configurationVersion'), '\"; export CONFIGURATION_REPO=\"', parameters('configurationGithubRepo'), '\"; ./util/install/generate-passwords.sh; bash ./util/install/native.sh''')]"
+          "commandToExecute": "[concat('bash -lc ''set -euxo pipefail; export DEBIAN_FRONTEND=noninteractive; LOG=/var/log/openedx-azure-install.log; exec > >(tee -a $LOG) 2>&1; apt-get update -y; apt-get install -y git curl ca-certificates software-properties-common python3-pip; install -d -o ', parameters('adminUsername'), ' -g ', parameters('adminUsername'), ' /home/', parameters('adminUsername'), '; TARGET=/home/', parameters('adminUsername'), '/openedx-install; cloned=0; for attempt in 1 2 3 4 5; do rm -rf \"$TARGET\"; if timeout 300 git -c http.version=HTTP/1.1 clone --depth 1 --single-branch --branch ', parameters('installerGithubBranch'), ' ', parameters('installerGithubRepo'), ' \"$TARGET\"; then cloned=1; break; fi; echo \"Clone attempt $attempt failed; retrying\"; sleep $((attempt * 15)); done; test \"$cloned\" = 1; test -f \"$TARGET/install-koa.sh\"; chown -R ', parameters('adminUsername'), ':', parameters('adminUsername'), ' \"$TARGET\"; git config --global --add safe.directory \"$TARGET\"; cd \"$TARGET\"; cat > config.yml <<\"EOF\"\nEDXAPP_LMS_BASE: \"', variables('resolvedLmsHost'), '\"\nEDXAPP_CMS_BASE: \"', variables('resolvedCmsHost'), '\"\nEDXAPP_ANALYTICS_DASHBOARD_URL: \"http://', variables('publicDnsName'), ':18110\"\nEDXAPP_ENABLE_OAUTH2_PROVIDER: true\nEDXAPP_LMS_BASE_SCHEME: http\nCOMMON_LMS_BASE_URL: \"http://', variables('resolvedLmsHost'), '\"\nCOMMON_CONFIG_NO_LOGGING: false\nINSIGHTS_LMS_BASE: \"http://', variables('resolvedLmsHost'), '\"\nINSIGHTS_CMS_BASE: \"http://', variables('resolvedCmsHost'), '\"\nINSIGHTS_BASE_URL: \"http://', variables('publicDnsName'), ':18110\"\nINSIGHTS_DOMAIN: \"', variables('publicDnsName'), '\"\nINSIGHTS_CMS_COURSE_SHORTCUT_BASE_URL: \"http://', variables('resolvedCmsHost'), '/course\"\nINSIGHTS_LMS_COURSE_SHORTCUT_BASE_URL: \"http://', variables('resolvedLmsHost'), '/courses\"\nANALYTICS_API_ENDPOINT: \"http://127.0.0.1:8100/api/v0\"\nANALYTICS_API_BASE_URL: \"http://127.0.0.1:8100\"\nANALYTICS_API_LMS_BASE_URL: \"http://127.0.0.1:8000/\"\nEOF\nexport OPENEDX_RELEASE=\"', parameters('openedxRelease'), '\"; ./util/install/generate-passwords.sh; systemd-run --unit=openedx-koa-install --property=WorkingDirectory=\"$TARGET\" --property=StandardOutput=append:/var/log/openedx-azure-install.log --property=StandardError=append:/var/log/openedx-azure-install.log --setenv=OPENEDX_RELEASE=\"$OPENEDX_RELEASE\" /bin/bash \"$TARGET/install-koa.sh\"; systemctl status openedx-koa-install --no-pager || true''')]"
         }
       },
       "dependsOn": [
@@ -426,6 +439,10 @@
       "type": "string",
       "value": "[concat('http://', variables('resolvedCmsHost'))]"
     },
+    "insightsUrl": {
+      "type": "string",
+      "value": "[concat('http://', variables('publicDnsName'), ':18110')]"
+    },
     "sshCommand": {
       "type": "string",
       "value": "[concat('ssh ', parameters('adminUsername'), '@', variables('publicDnsName'))]"
@@ -433,6 +450,10 @@
     "installLog": {
       "type": "string",
       "value": "/var/log/openedx-azure-install.log"
+    },
+    "installStatusCommand": {
+      "type": "string",
+      "value": "sudo systemctl status openedx-koa-install --no-pager -l"
     }
   }
 }
