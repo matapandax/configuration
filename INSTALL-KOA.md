@@ -55,3 +55,12 @@ sudo -u edxapp bash -lc 'source /edx/app/edxapp/edxapp_env && cd /edx/app/edxapp
 
 Insights panels remain empty until learner events exist and the analytics
 pipeline has processed them.
+
+
+## Monitor Install
+```bash
+sudo systemctl status openedx-koa-install --no-pager -l
+sudo journalctl -u openedx-koa-install -f
+sudo tail -f /var/log/openedx-azure-install.log
+```
+After Successfully install from Templates 
